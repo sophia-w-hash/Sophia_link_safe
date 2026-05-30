@@ -1,14 +1,27 @@
 require("dotenv").config();
 
 const express = require("express");
-const emailRoutes = require("./routes/emailRoutes");
 
 const app = express();
 
 app.use(express.json());
 
-app.use("/api/email", emailRoutes);
+app.get("/", (req, res) => {
+  res.send(`
+    <h1>Mailer API Running 🚀</h1>
+    <p>Server is working correctly.</p>
+  `);
+});
 
-app.listen(process.env.PORT, () => {
-  console.log(`Server running on ${process.env.PORT}`);
+app.get("/health", (req, res) => {
+  res.json({
+    success: true,
+    status: "online"
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
