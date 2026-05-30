@@ -8,12 +8,12 @@ exports.send = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Email sent"
+      message: "Email sent successfully"
     });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({
       success: false,
-      error: error.message
+      error: err.message
     });
   }
 };
