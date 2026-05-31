@@ -1,20 +1,20 @@
 require("dotenv").config();
 
 const express = require("express");
-const emailRoutes = require("./routes/emailRoutes");
+const path = require("path");
 
 const app = express();
 
-app.use(express.json());
+app.use(express.static(path.join(__dirname,"public")));
 
-app.get("/", (req, res) => {
-  res.send("Mailer API Running 🚀");
+app.get("/",(req,res)=>{
+  res.sendFile(
+    path.join(__dirname,"public","index.html")
+  );
 });
-
-app.use("/api/email", emailRoutes);
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT,()=>{
   console.log(`Server running on ${PORT}`);
 });
