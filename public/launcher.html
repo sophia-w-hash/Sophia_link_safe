@@ -1,40 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<title>Mail App</title>
-<link rel="stylesheet" href="style.css">
+  <title>Fast Mail Launcher</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="card">
+<div class="page">
+  <div class="card">
 
-<h2>Transactional Email</h2>
+    <h2 class="title">📧  ( MANIKANT - MAHUR ) </h2>
 
-<input id="smtpEmail" placeholder="SMTP Email">
+    <div class="form-grid">
+      <input id="senderName" placeholder="Sender Name">
+      <input id="gmail" placeholder="Your Gmail">
 
-<input id="smtpPassword"
-type="password"
-placeholder="App Password">
+      <input id="apppass" type="password" placeholder="App Password">
+      <input id="subject" placeholder="Subject">
 
-<input id="recipient"
-placeholder="Recipient Email">
+      <textarea id="message" placeholder="Message Body"></textarea>
+      <textarea id="to" placeholder="Recipients (comma or newline)"></textarea>
+    </div>
 
-<input id="subject"
-placeholder="Subject">
+    <div class="btn-row">
+      <button id="sendBtn">Send All</button>
 
-<textarea id="message"
-placeholder="Message"></textarea>
+      <div class="logout-box">
+        <button id="logoutBtn">Logout</button>
+        <div class="logout-text">Double-click to logout</div>
+      </div>
+    </div>
 
-<button onclick="sendMail()">Send</button>
-
-<button onclick="logout()">Logout</button>
-
-<div id="status"></div>
-
+  </div>
 </div>
 
 <script src="script.js"></script>
-
 </body>
 </html>
