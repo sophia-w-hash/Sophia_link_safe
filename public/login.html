@@ -1,20 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Login</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Login</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="box">
   <h2>Login</h2>
 
-  <input id="user" placeholder="Username">
-  <input id="pass" type="password" placeholder="Password">
+  <input id="user" placeholder="ID">
+
+  <input
+    id="pass"
+    type="password"
+    placeholder="Password"
+  >
 
   <button onclick="login()">Login</button>
 </div>
 
-<script src="script.js"></script>
+<script>
+function login() {
+  const user = document.getElementById("user").value;
+  const pass = document.getElementById("pass").value;
+
+  if (user === "@@@@" && pass === "@@@@") {
+    localStorage.setItem("auth","yes");
+    location.href="/index.html";
+  } else {
+    alert("Invalid Login");
+  }
+}
+</script>
+
 </body>
 </html>
