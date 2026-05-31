@@ -1,38 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<title>Login</title>
-<link rel="stylesheet" href="style.css">
+  <title>Secure Login</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="card">
-  <h2>Login</h2>
-
-  <input id="user" placeholder="Username">
-  <input id="pass" type="password" placeholder="Password">
-
+<div class="login-box">
+  <h2>Secure Access</h2>
+  <input id="uid" placeholder="Username">
+  <input id="upass" type="password" placeholder="Password">
   <button onclick="login()">Login</button>
 </div>
 
 <script>
-async function login() {
-  const r = await fetch("/login", {
-    method: "POST",
-    headers: { "Content-Type":"application/json" },
-    body: JSON.stringify({
-      username: document.getElementById("user").value,
-      password: document.getElementById("pass").value
-    })
-  });
+function login() {
+  const u = document.getElementById("uid").value.trim();
+  const p = document.getElementById("upass").value.trim();
 
-  const data = await r.json();
-
-  if(data.success){
-    location.href="/launcher";
-  }else{
-    alert("Invalid login");
+  if (u === "marji" && p === "marji") {
+    sessionStorage.setItem("auth","ok");
+    location.href = "/launcher.html";
+  } else {
+    alert("Invalid Login ❌");
   }
 }
 </script>
