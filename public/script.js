@@ -1,65 +1,32 @@
-if (!localStorage.getItem("auth")) {
-  location.href = "/login.html";
-}
-
-document
-  .getElementById("logoutBtn")
-  .addEventListener("dblclick", () => {
-    localStorage.removeItem("auth");
-    location.href = "/login.html";
-  });
-
-document
-  .getElementById("sendBtn")
-  .addEventListener("click", sendMail);
-
 async function sendMail() {
 
-  const btn =
-    document.getElementById("sendBtn");
+  const payload = {
+    smtpEmail: document.getElementById("smtpEmail").value,
+    smtpPassword: document.getElementById("smtpPassword").value,
+    recipient: document.getElementById("recipient").value,
+    subject: document.getElementById("subject").value,
+    message: document.getElementById("message").value
+  };
 
-  btn.disabled = true;
-  btn.innerText = "Sending...";
+  const r = await fetch("/send", {
+    method: "POST",
+    headers: {
+      "Content-Type":"application/json"
+    },
+    body: JSON.stringify(payload)
+  });
 
-  try {
+  const data = await r.json();
 
-    const response = await fetch("/send", {
-      method: "POST",
-      headers: {
-        "Content-Type":
-          "application/json"
-      },
-      body: JSON.stringify({
-        senderName:
-          document.getElementById("senderName").value,
+  document.getElementById("status").innerText =
+    data.message;
+}
 
-        gmail:
-          document.getElementById("gmail").value,
+async function logout() {
 
-        appPassword:
-          document.getElementById("appPassword").value,
+  await fetch("/logout", {
+    method:"POST"
+  });
 
-        recipient:
-          document.getElementById("recipient").value,
-
-        subject:
-          document.getElementById("subject").value,
-
-        message:
-          document.getElementById("message").value
-      })
-    });
-
-    const data = await response.json();
-
-    alert(data.message);
-
-  } catch {
-
-    alert("Error");
-
-  }
-
-  btn.disabled = false;
-  btn.innerText = "Send";
+  location.href="/";
 }
