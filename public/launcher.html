@@ -1,39 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Fast Mail Launcher</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Mail Launcher</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+  /* Optional UX hint */
+  .logout-hint {
+    font-size: 12px;
+    color: #888;
+    margin-top: 4px;
+  }
+</style>
 </head>
+
 <body>
+<div class="form-grid">
+  <h2>📧 Safe Mail Launcher</h2>
 
-<div class="page">
-  <div class="card">
-
-    <h2 class="title">📧 </h2>
-
-    <div class="form-grid">
-      <input id="senderName" placeholder="Sender Name">
-      <input id="gmail" placeholder="Your Gmail">
-
-      <input id="apppass" type="password" placeholder="App Password">
-      <input id="subject" placeholder="Subject">
-
-      <textarea id="message" placeholder="Message Body"></textarea>
-      <textarea id="to" placeholder="Recipients (comma or newline)"></textarea>
-    </div>
-
-    <div class="btn-row">
-      <button id="sendBtn">Send All</button>
-
-      <div class="logout-box">
-        <button id="logoutBtn">Logout</button>
-        <div class="logout-text">Double-click to logout</div>
-      </div>
-    </div>
-
+  <div class="grid-row">
+    <input id="senderName" placeholder="Sender Name">
+    <input id="email" placeholder="Your Gmail">
   </div>
+
+  <div class="grid-row">
+    <input id="pass" type="password" placeholder="App Password">
+    <input id="subject" placeholder="Subject">
+  </div>
+
+  <div class="grid-row">
+    <textarea id="message" placeholder="Message Body"></textarea>
+    <textarea id="recipients" placeholder="Recipients (comma or newline)"></textarea>
+  </div>
+
+  <div class="grid-row">
+    <button id="sendBtn">Send All</button>
+
+    <!-- 🔓 DOUBLE CLICK LOGOUT BUTTON -->
+    <div>
+      <button id="logoutBtn" title="Double click to logout">Logout</button>
+      <div class="logout-hint">Double-click to logout</div>
+    </div>
+  </div>
+
+  <p id="statusMessage"></p>
 </div>
 
 <script src="script.js"></script>
+
+<script>
+/* ===============================
+   DOUBLE-CLICK LOGOUT LOGIC
+================================ */
+
+const logoutBtn = document.getElementById("logoutBtn");
+
+logoutBtn.addEventListener("dblclick", () => {
+  fetch("/logout", { method: "POST" })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message);
+      if (data.success) {
+        window.location.href = "/";
+      }
+    })
+    .catch(() => {
+      alert("Logout failed");
+    });
+});
+</script>
+
 </body>
 </html>
