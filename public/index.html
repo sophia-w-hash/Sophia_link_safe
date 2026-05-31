@@ -3,26 +3,46 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mail Launcher</title>
+  <title>Fast Mail Launcher</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="card">
-  <h1>📧 Mail Launcher</h1>
+<div class="wrapper">
 
-  <input type="text" placeholder="Sender Name">
-  <input type="email" placeholder="Your Gmail">
-  <input type="password" placeholder="App Password">
-  <input type="text" placeholder="Subject">
-  <textarea placeholder="Message Body"></textarea>
-  <input type="email" placeholder="Recipient Email">
+  <div class="card">
 
-  <button id="sendBtn">Send Email</button>
+    <h1>📨 Fast Mail Launcher</h1>
 
-  <p id="status"></p>
+    <div class="grid">
+
+      <input type="text" placeholder="Sender Name">
+      <input type="email" placeholder="Your Gmail">
+
+      <input type="password" placeholder="App Password">
+      <input type="text" placeholder="Subject">
+
+      <textarea placeholder="Message Body"></textarea>
+      <textarea placeholder="Recipient Email"></textarea>
+
+    </div>
+
+    <div class="bottom">
+
+      <button class="send-btn">Send Email</button>
+
+      <div class="logout-area">
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+        <p>Double-click to logout</p>
+      </div>
+
+    </div>
+
+  </div>
+
 </div>
 
 <script src="app.js"></script>
+
 </body>
 </html>
