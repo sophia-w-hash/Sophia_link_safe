@@ -1,70 +1,26 @@
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:"Segoe UI",sans-serif;
-}
+document
+.getElementById("logoutBtn")
+.addEventListener("dblclick", async () => {
 
-body{
-display:flex;
-justify-content:center;
-align-items:center;
-min-height:100vh;
-background:#f0f4f8;
-padding:20px;
-}
+  const res = await fetch("/logout", {
+    method: "POST"
+  });
 
-.form-box,
-.form-grid{
-background:#fff;
-padding:25px;
-border-radius:12px;
-box-shadow:0 10px 25px rgba(0,0,0,.1);
-width:800px;
-}
+  const data = await res.json();
 
-h2{
-text-align:center;
-margin-bottom:20px;
-}
+  if (data.success) {
+    window.location.href = "/";
+  }
+});
 
-.grid-row{
-display:flex;
-gap:15px;
-margin-bottom:15px;
-}
+document
+.getElementById("sendBtn")
+.addEventListener("click", () => {
 
-.grid-row input,
-.grid-row textarea,
-.grid-row button{
-flex:1;
-padding:12px;
-border-radius:8px;
-border:1px solid #cbd5e1;
-}
+  const status =
+    document.getElementById("statusMessage");
 
-.grid-row textarea{
-height:120px;
-resize:vertical;
-}
+  status.innerText =
+    "Form submitted.";
 
-.grid-row button{
-border:none;
-background:#3b82f6;
-color:white;
-font-weight:600;
-cursor:pointer;
-}
-
-.logout-hint{
-font-size:12px;
-margin-top:5px;
-color:#777;
-text-align:center;
-}
-
-#statusMessage,
-#loginStatus{
-text-align:center;
-margin-top:10px;
-}
+});
