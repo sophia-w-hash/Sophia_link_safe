@@ -1,44 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mail Launcher</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mail Launcher</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="container">
+<div class="card">
+  <h1>📧 Mail Launcher</h1>
 
-    <div class="card">
+  <input type="text" placeholder="Sender Name">
+  <input type="email" placeholder="Your Gmail">
+  <input type="password" placeholder="App Password">
+  <input type="text" placeholder="Subject">
+  <textarea placeholder="Message Body"></textarea>
+  <input type="email" placeholder="Recipient Email">
 
-        <h1>📧 Fast Mail Launcher</h1>
+  <button id="sendBtn">Send Email</button>
 
-        <div class="grid">
-
-            <input type="text" id="senderName" placeholder="Sender Name">
-
-            <input type="email" id="gmail" placeholder="Your Gmail">
-
-            <input type="password" id="appPassword" placeholder="App Password">
-
-            <input type="text" id="subject" placeholder="Subject">
-
-            <textarea id="message" placeholder="Message Body"></textarea>
-
-            <textarea id="recipient" placeholder="Recipient Email"></textarea>
-
-        </div>
-
-        <button onclick="sendMail()">Send Email</button>
-
-        <div id="status"></div>
-
-    </div>
-
+  <p id="status"></p>
 </div>
 
 <script src="app.js"></script>
-
 </body>
 </html>
