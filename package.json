@@ -1,14 +1,9 @@
 {
-  "name": "safe-mail-app",
+  "name": "safe-mail-sender",
   "version": "1.0.0",
-  "description": "Safe transactional email application",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
+  "type": "module",
   "dependencies": {
-    "express": "^4.18.2",
-    "express-session": "^1.17.3",
-    "nodemailer": "^6.9.16"
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.9"
   }
 }
