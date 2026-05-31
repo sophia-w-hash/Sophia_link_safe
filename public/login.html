@@ -1,53 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Login</title>
-<link rel="stylesheet" href="style.css">
+  <title>Login</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="form-box">
-<h2>🔒 Login</h2>
+<div class="box">
+  <h2>Login</h2>
 
-<input id="username" placeholder="Username">
-<input id="password" type="password" placeholder="Password">
+  <input id="user" placeholder="Username">
+  <input id="pass" type="password" placeholder="Password">
 
-<button id="loginBtn">Login</button>
-
-<p id="loginStatus"></p>
+  <button onclick="login()">Login</button>
 </div>
 
-<script>
-document.getElementById("loginBtn").onclick = async () => {
-
-const username =
-document.getElementById("username").value;
-
-const password =
-document.getElementById("password").value;
-
-const res = await fetch("/login",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-username,
-password
-})
-});
-
-const data = await res.json();
-
-if(data.success){
-location.href="/launcher";
-}else{
-document.getElementById("loginStatus").innerText =
-data.message;
-}
-};
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
