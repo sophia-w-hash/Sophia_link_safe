@@ -1,26 +1,28 @@
-document
-.getElementById("logoutBtn")
-.addEventListener("dblclick", async () => {
+document.getElementById("sendBtn")
+.addEventListener("click", async () => {
 
-  const res = await fetch("/logout", {
-    method:"POST"
-  });
+const res = await fetch("/send",{
+method:"POST"
+});
 
-  const data = await res.json();
+const data = await res.json();
 
-  if(data.success){
-    window.location.href = "/";
-  }
+document.getElementById("statusMessage")
+.innerText = data.message;
 
 });
 
-document
-.getElementById("sendBtn")
-.addEventListener("click", () => {
+document.getElementById("logoutBtn")
+.addEventListener("dblclick", async () => {
 
-  document.getElementById(
-    "statusMessage"
-  ).innerText =
-    "Demo UI Loaded Successfully";
+const res = await fetch("/logout",{
+method:"POST"
+});
+
+const data = await res.json();
+
+if(data.success){
+window.location.href="/";
+}
 
 });
