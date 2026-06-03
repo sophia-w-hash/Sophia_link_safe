@@ -128,8 +128,8 @@ async function sendOneByOne(transporter, mails, senderDomain) {
     mail.headers['Message-ID'] = makeMessageId(senderDomain);
     const result = await Promise.allSettled([transporter.sendMail(mail)]);
     results.push(result[0]);
-    // 0.5 second delay between each mail — safe, Gmail friendly
-    await delay(300);
+    // 0.2 second delay between each mail — safe, Gmail friendly
+    await delay(200);
   }
   return results;
 }
