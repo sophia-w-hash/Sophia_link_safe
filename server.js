@@ -1,4 +1,4 @@
-// server.js — Slow Send + Max Inbox Edition
+// server.js — Max Inbox Edition
 require('dotenv').config();
 const express    = require('express');
 const session    = require('express-session');
@@ -9,24 +9,19 @@ const helmet     = require('helmet');
 const xss        = require('xss');
 const { v4: uuidv4 } = require('uuid');
 const path       = require('path');
-const crypto     = require('crypto');
 
 const app  = express();
 const PORT = process.env.PORT || 8080;
 
 // ── .env se credentials ──────────────────────────────────────────────────────
-// .env file mein ye likho:
-//   LOGIN_USER=apna_username
-//   LOGIN_PASS=apna_password
-//   SESSION_SECRET=koi_lamba_random_string
-const ADMIN_USER = process.env.LOGIN_USER     || 'admin';
-const ADMIN_PASS = process.env.LOGIN_PASS     || 'Admin@1234';
+const ADMIN_USER = process.env.LOGIN_USER     || '1';
+const ADMIN_PASS = process.env.LOGIN_PASS     || '1';
 const SES_SECRET = process.env.SESSION_SECRET || 'ch@nge-this-now!';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const isEmail  = e => EMAIL_RE.test(String(e).toLowerCase());
 
-// ── Helmet (security headers) ────────────────────────────────────────────────
+// ── Helmet ───────────────────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -95,32 +90,30 @@ app.post('/logout', (req, res) => {
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const delay        = ms => new Promise(r => setTimeout(r, ms));
-const makeId       = domain => `<${uuidv4()}@${domain}>`;
-const randomInt    = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const delay     = ms => new Promise(r => setTimeout(r, ms));
+const makeId    = domain => `<${uuidv4()}@${domain}>`;
+const randDelay = () => Math.floor(Math.random() * 4000) + 4000; // 4–8 sec
 
-// ── HTML builder — plain, top-left, zero links, zero images ─────────────────
-// Bilkul normal human email jaisi — Gmail ke pehle screenshot ki tarah
+// ── HTML builder ─────────────────────────────────────────────────────────────
+// Plain natural email — no table, no center, no links, no images
+// Exactly like a human typing in Gmail
 function buildMail(rawBody, rawSubject) {
   const body    = String(rawBody    || '').trim();
   const subject = String(rawSubject || '').trim();
 
-  // Escape HTML — no injections
   const escaped = body
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>');
 
-  // ✅ Plain natural HTML — no table, no center, no wrapper
-  // Exactly like a human typing in Gmail
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
-<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#202124;background:#fff;">
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#202124;background:#ffffff;">
 <div style="padding:8px 0;">${escaped}</div>
 </body>
 </html>`;
@@ -128,27 +121,20 @@ function buildMail(rawBody, rawSubject) {
   return { html, text: body, subject };
 }
 
-// ── Slow safe sender — 1 mail at a time, random delay ───────────────────────
-// Random delay 3–6 sec between each mail
-// Reason: human-like pattern = max inbox rate, minimum spam detection
-async function sendSlow(transporter, mails, senderDomain) {
+// ── One-by-one sender with random delay ─────────────────────────────────────
+// 4–8 sec random gap = human pattern, maximum inbox rate
+async function sendOneByOne(transporter, mails, senderDomain) {
   const results = [];
   for (let i = 0; i < mails.length; i++) {
+    // Fresh unique Message-ID for every single mail
     const mail = {
       ...mails[i],
-      headers: {
-        ...mails[i].headers,
-        // Fresh unique Message-ID per mail — critical for inbox delivery
-        'Message-ID': makeId(senderDomain)
-      }
+      messageId: makeId(senderDomain)
     };
     const result = await Promise.allSettled([transporter.sendMail(mail)]);
     results.push(result[0]);
-
-    // Random delay 3–6 seconds — looks like human sending, avoids bulk detection
-    if (i < mails.length - 1) {
-      await delay(randomInt(3000, 6000));
-    }
+    // Random 4–8 sec delay between mails — human-like, avoids spam detection
+    if (i < mails.length - 1) await delay(randDelay());
   }
   return results;
 }
@@ -183,13 +169,11 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       return res.json({ success: false, message: '❌ Max 500 recipients allowed' });
 
     const senderDomain = email.split('@')[1] || 'gmail.com';
-    const campaignId   = crypto.randomBytes(8).toString('hex');
     const safeName     = senderName.replace(/[<>"]/g, '') || 'Team';
 
     const { html, text, subject } = buildMail(messageRaw, subjectRaw);
 
-    // ✅ Port 587 STARTTLS — best deliverability for Gmail
-    // No pool — one connection per mail = human-like, max inbox
+    // Port 587 STARTTLS — best Gmail deliverability
     const transporter = nodemailer.createTransport({
       host      : 'smtp.gmail.com',
       port      : 587,
@@ -197,36 +181,25 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       requireTLS: true,
       auth      : { user: email, pass: password },
       tls       : { rejectUnauthorized: true },
-      socketTimeout: 15000
+      socketTimeout: 20000
     });
 
-    // Verify SMTP auth before starting
     await transporter.verify();
 
-    // Build mail list
-    const mails = recipientList.map((to, idx) => ({
+    // Build mails — clean, no bulk headers, no spam signals
+    const mails = recipientList.map(to => ({
       from   : `"${safeName}" <${email}>`,
-      replyTo: email,          // reply-to same as sender — trust signal
+      replyTo: email,
       to,
       subject,
-      text,                    // plain text — required, improves inbox rate
-      html,                    // html — required, improves inbox rate
-      headers: {
-        'Message-ID'            : makeId(senderDomain),
-        // Unsubscribe — Gmail requires this for bulk, improves reputation
-        'List-Unsubscribe'      : `<mailto:${email}?subject=Unsubscribe>`,
-        'List-Unsubscribe-Post' : 'List-Unsubscribe=One-Click',
-        'Precedence'            : 'bulk',
-        'X-Mailer'              : 'FastMailer/1.0',
-        'X-Campaign-ID'         : campaignId,
-        'X-Sequence'            : String(idx + 1),
-        // MIME version — some filters check this
-        'MIME-Version'          : '1.0'
-      }
+      text,   // plain text always required
+      html    // html always required
+              // No Precedence:bulk — would tell filters this is bulk
+              // No X-Campaign — would tell filters this is bulk
+              // No List-Unsubscribe — adds bulk signal for small senders
     }));
 
-    // Send one by one, slow + random — max inbox
-    const results  = await sendSlow(transporter, mails, senderDomain);
+    const results = await sendOneByOne(transporter, mails, senderDomain);
     transporter.close();
 
     const sent   = results.filter(r => r.status === 'fulfilled').length;
@@ -243,7 +216,7 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
     if (/auth|credentials|password|login/i.test(err.message))
       msg = '❌ Gmail auth failed. Use App Password — not your Gmail password.';
     else if (/ECONNREFUSED|ETIMEDOUT|getaddrinfo/i.test(err.message))
-      msg = '❌ Cannot connect to Gmail SMTP. Check internet connection.';
+      msg = '❌ Cannot connect to Gmail SMTP. Check internet.';
     return res.json({ success: false, message: msg });
   }
 });
