@@ -86,7 +86,7 @@ app.post('/logout', (req, res) => {
 
 const delay     = ms => new Promise(r => setTimeout(r, ms));
 const makeId    = domain => `<${uuidv4()}@${domain}>`;
-const randDelay = () => Math.floor(Math.random() * 3000) + 3000; // 3–6 sec
+const randDelay = () => Math.floor(Math.random() * 300) + 300; // 0.5–1 sec
 
 async function sendOneByOne(transporter, mails, senderDomain) {
   const results = [];
