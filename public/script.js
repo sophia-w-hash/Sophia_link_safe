@@ -8,7 +8,6 @@ function logout() {
 // Live recipient counter
 const rcEl    = document.getElementById('recipients');
 const rcCount = document.getElementById('rcCount');
-
 if (rcEl && rcCount) {
   rcEl.addEventListener('input', () => {
     const count = rcEl.value
@@ -31,10 +30,10 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
   const status     = document.getElementById('statusMessage');
   const btn        = document.getElementById('sendBtn');
 
-  // Basic client-side validation
+  // Validation
   if (!email || !password || !recipients) {
-    status.innerText      = '❌ Gmail, App Password and Recipients are required';
-    status.style.color    = '#ef4444';
+    status.innerText   = '❌ Gmail, App Password and Recipients required';
+    status.style.color = '#ef4444';
     return;
   }
 
@@ -45,29 +44,23 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
     return;
   }
 
-  const count = recipients
-    .split(/[\n,]+/)
-    .map(r => r.trim())
-    .filter(r => emailRe.test(r))
-    .length;
-
+  const count = recipients.split(/[\n,]+/).map(r=>r.trim()).filter(r=>emailRe.test(r)).length;
   if (count === 0) {
     status.innerText   = '❌ No valid recipient emails found';
     status.style.color = '#ef4444';
     return;
   }
-
   if (count > 500) {
     status.innerText   = '❌ Max 500 recipients allowed';
     status.style.color = '#ef4444';
     return;
   }
 
-  if (!confirm(`Send email to ${count} recipient(s)?`)) return;
-
+  // Seedha send — koi confirm popup nahi
   btn.disabled     = true;
   btn.innerText    = '⏳ Sending...';
-  status.innerText = '';
+  status.innerText = `📤 Sending to ${count} recipients...`;
+  status.style.color = '#3b82f6';
 
   fetch('/send', {
     method : 'POST',
@@ -80,6 +73,9 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
     status.style.color = data.success ? '#10b981' : '#ef4444';
     btn.disabled  = false;
     btn.innerText = '🚀 Send All';
+
+    // Sirf end mein — send hone ke baad OK popup
+    if (data.success) alert(data.message);
   })
   .catch(err => {
     status.innerText   = '❌ Network error: ' + err.message;
