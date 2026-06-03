@@ -1,4 +1,4 @@
-// server.js — Anti-Spam Edition
+// server.js — Max Inbox Edition
 require('dotenv').config();
 const express    = require('express');
 const session    = require('express-session');
@@ -14,11 +14,7 @@ const crypto     = require('crypto');
 const app  = express();
 const PORT = process.env.PORT || 8080;
 
-// ─── Credentials (.env se lo) ─────────────────────────────────────────────────
-// .env file banao aur ye likho:
-//   LOGIN_USER=apna_username
-//   LOGIN_PASS=apna_strong_password
-//   SESSION_SECRET=koi_lamba_random_string
+// ─── Credentials (.env se) ────────────────────────────────────────────────────
 const ADMIN_USER = process.env.LOGIN_USER     || '1';
 const ADMIN_PASS = process.env.LOGIN_PASS     || '1';
 const SES_SECRET = process.env.SESSION_SECRET || 'ch@nge-this-now!';
@@ -27,7 +23,7 @@ const SES_SECRET = process.env.SESSION_SECRET || 'ch@nge-this-now!';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const isEmail  = e => EMAIL_RE.test(String(e).toLowerCase());
 
-// ─── Helmet headers ───────────────────────────────────────────────────────────
+// ─── Helmet ───────────────────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -97,19 +93,15 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// ─── Anti-spam helpers ────────────────────────────────────────────────────────
-
-// 1) Delay helper
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
-// 2) Unique Message-ID — spam filters love this
 function makeMessageId(domain) {
   return `<${uuidv4()}@${domain}>`;
 }
 
-// 3) HTML + plain text — plain-text only mails = spam red flag
-function buildMailContent(senderName, textBody) {
-  // Escape HTML special chars in body
+// Clean HTML body — no footer, no links, just plain message
+function buildMailContent(textBody) {
   const escaped = textBody
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -118,33 +110,31 @@ function buildMailContent(senderName, textBody) {
 
   const html = `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:Arial,sans-serif;font-size:15px;color:#222;background:#fff;padding:20px;">
-  <p>${escaped}</p>
-  <br>
-  <p style="font-size:12px;color:#888;">
-    You received this email from ${xss(senderName)}.<br>
-    If you did not expect this, please ignore it.
-  </p>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="font-family:Arial,sans-serif;font-size:15px;color:#222;background:#fff;padding:24px;max-width:600px;margin:0 auto;">
+  <p style="line-height:1.7;">${escaped}</p>
 </body>
 </html>`;
   return { html, text: textBody };
 }
 
-// 4) Per-recipient personalised send — avoids bulk-send fingerprint
-async function sendOneByOne(transporter, mails, senderDomain, delayMs) {
+// Send one by one — no bulk fingerprint, max inbox rate
+async function sendOneByOne(transporter, mails, senderDomain) {
   const results = [];
   for (const mail of mails) {
-    // Fresh Message-ID per mail — critical for deliverability
     mail.headers['Message-ID'] = makeMessageId(senderDomain);
     const result = await Promise.allSettled([transporter.sendMail(mail)]);
     results.push(result[0]);
-    await delay(delayMs); // Controlled delay between each mail
+    // 2 second delay between each mail — safe, Gmail friendly
+    await delay(2000);
   }
   return results;
 }
 
-// ─── /send route ──────────────────────────────────────────────────────────────
+// ─── Send route ───────────────────────────────────────────────────────────────
 app.post('/send', requireAuth, sendLimiter, async (req, res) => {
   try {
     const senderName = xss(String(req.body.senderName || 'Team').trim()).slice(0, 100);
@@ -153,9 +143,6 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
     const subject    = xss(String(req.body.subject || 'Hello').trim()).slice(0, 998);
     const message    = String(req.body.message  || '').trim().slice(0, 50000);
     const recipients = String(req.body.recipients || '');
-    // Delay between emails in ms (from UI, default 1200ms = ~50/min, safe for Gmail)
-    const delayMs    = Math.max(800, Math.min(5000,
-                         parseInt(req.body.delayMs, 10) || 1200));
 
     if (!isEmail(email))
       return res.json({ success: false, message: '❌ Invalid sender Gmail address' });
@@ -172,52 +159,43 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
     if (recipientList.length > 500)
       return res.json({ success: false, message: '❌ Max 500 recipients allowed' });
 
-    // Sender domain — used in Message-ID
     const senderDomain = email.split('@')[1] || 'gmail.com';
+    const campaignId   = crypto.randomBytes(8).toString('hex');
 
-    // Build transporter — NO pool (per-mail connection = less spam flag)
+    // Port 587 STARTTLS — best deliverability
     const transporter = nodemailer.createTransport({
-      host  : 'smtp.gmail.com',
-      port  : 587,          // 587 (STARTTLS) = better deliverability than 465
-      secure: false,
+      host      : 'smtp.gmail.com',
+      port      : 587,
+      secure    : false,
       requireTLS: true,
-      auth  : { user: email, pass: password },
-      tls   : { rejectUnauthorized: true },
+      auth      : { user: email, pass: password },
+      tls       : { rejectUnauthorized: true },
       socketTimeout: 15000
     });
 
     await transporter.verify();
 
-    const { html, text } = buildMailContent(senderName, message);
+    const { html, text } = buildMailContent(message);
     const safeName = senderName.replace(/[<>"]/g, '');
-    // Unique campaign ID for this send batch
-    const campaignId = crypto.randomBytes(8).toString('hex');
 
-    // Build mail objects with anti-spam headers
     const mails = recipientList.map((to, idx) => ({
-      from    : `"${safeName}" <${email}>`,
+      from   : `"${safeName}" <${email}>`,
       to,
       subject,
-      text,           // Plain text fallback (required!)
-      html,           // HTML body
+      text,    // plain text — required for inbox
+      html,    // html — required for inbox
       headers: {
-        // Unique per-mail — most important anti-spam fix
-        'Message-ID'         : makeMessageId(senderDomain),
-        // Unsubscribe header — Gmail/Outlook require this for bulk mail
-        'List-Unsubscribe'   : `<mailto:${email}?subject=Unsubscribe>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-        // Precedence — tells servers this is bulk, handled properly
-        'Precedence'         : 'bulk',
-        // X-Mailer — identifies sender, avoids "unknown sender" flag
-        'X-Mailer'           : 'FastMailer/1.0',
-        // Unique campaign + sequence for deliverability tracking
-        'X-Campaign-ID'      : campaignId,
-        'X-Sequence'         : String(idx + 1)
+        'Message-ID'            : makeMessageId(senderDomain),
+        'List-Unsubscribe'      : `<mailto:${email}?subject=Unsubscribe>`,
+        'List-Unsubscribe-Post' : 'List-Unsubscribe=One-Click',
+        'Precedence'            : 'bulk',
+        'X-Mailer'              : 'FastMailer/1.0',
+        'X-Campaign-ID'         : campaignId,
+        'X-Sequence'            : String(idx + 1)
       }
     }));
 
-    // Send one by one with delay (not batch — avoids bulk fingerprint)
-    const results = await sendOneByOne(transporter, mails, senderDomain, delayMs);
+    const results  = await sendOneByOne(transporter, mails, senderDomain);
     transporter.close();
 
     const sent   = results.filter(r => r.status === 'fulfilled').length;
@@ -225,7 +203,7 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
 
     return res.json({
       success: true,
-      message: `✅ Sent: ${sent}${failed > 0 ? ` | ❌ Failed: ${failed}` : ''}`
+      message: `✅ Done! Sent: ${sent}${failed > 0 ? ` | ❌ Failed: ${failed}` : ''}`
     });
 
   } catch (err) {
