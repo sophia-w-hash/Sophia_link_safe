@@ -3,58 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login — Fast Mailer</title>
+<title>Fast Mail Launcher</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="form-box">
-  <h2>🔒 Login</h2>
-  <input id="username" placeholder="Username" maxlength="100" autocomplete="username">
-  <input id="password" type="password" placeholder="Password" maxlength="200" autocomplete="current-password">
-  <button id="loginBtn">Login</button>
-  <p id="loginStatus"></p>
+<div class="form-grid">
+  <h2>📧 Fast Mail Launcher</h2>
+  <div class="grid-row">
+    <input id="senderName" placeholder="Sender Name" maxlength="100">
+    <input id="email" type="email" placeholder="Your Gmail" maxlength="254">
+  </div>
+  <div class="grid-row">
+    <input id="pass" type="password" placeholder="Gmail App Password" maxlength="200">
+    <input id="subject" placeholder="Subject" maxlength="500">
+  </div>
+  <div class="grid-row">
+    <textarea id="message" placeholder="Message Body" maxlength="50000"></textarea>
+    <div class="rc-wrap">
+      <textarea id="recipients" placeholder="Recipients (comma or newline)&#10;Max 500 emails"></textarea>
+      <span id="rcCount" class="rc-count">0 recipients</span>
+    </div>
+  </div>
+  <div class="grid-row">
+    <button id="sendBtn">🚀 Send All</button>
+    <button class="btn-logout" onclick="logout()">🚪 Logout</button>
+  </div>
+  <p id="statusMessage"></p>
 </div>
-<script>
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('loginBtn').click();
-});
-
-document.getElementById('loginBtn').addEventListener('click', () => {
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value.trim();
-  const status   = document.getElementById('loginStatus');
-  const btn      = document.getElementById('loginBtn');
-
-  if (!username || !password) {
-    status.innerText = '❌ Enter username and password';
-    return;
-  }
-
-  btn.disabled  = true;
-  btn.innerText = '⏳ Logging in...';
-  status.innerText = '';
-
-  fetch('/login', {
-    method : 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body   : JSON.stringify({ username, password })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) {
-      window.location.href = '/launcher';
-    } else {
-      status.innerText  = data.message;
-      btn.disabled  = false;
-      btn.innerText = 'Login';
-    }
-  })
-  .catch(() => {
-    status.innerText  = '❌ Network error. Try again.';
-    btn.disabled  = false;
-    btn.innerText = 'Login';
-  });
-});
-</script>
+<script src="script.js"></script>
 </body>
 </html>
