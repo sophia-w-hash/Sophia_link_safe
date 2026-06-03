@@ -1,4 +1,4 @@
-// server.js — Fast + Max Inbox Edition
+// server.js — Slow Send + Max Inbox Edition
 require('dotenv').config();
 const express    = require('express');
 const session    = require('express-session');
@@ -14,6 +14,11 @@ const crypto     = require('crypto');
 const app  = express();
 const PORT = process.env.PORT || 8080;
 
+// ── .env se credentials ──────────────────────────────────────────────────────
+// .env file mein ye likho:
+//   LOGIN_USER=apna_username
+//   LOGIN_PASS=apna_password
+//   SESSION_SECRET=koi_lamba_random_string
 const ADMIN_USER = process.env.LOGIN_USER     || 'admin';
 const ADMIN_PASS = process.env.LOGIN_PASS     || 'Admin@1234';
 const SES_SECRET = process.env.SESSION_SECRET || 'ch@nge-this-now!';
@@ -21,7 +26,7 @@ const SES_SECRET = process.env.SESSION_SECRET || 'ch@nge-this-now!';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const isEmail  = e => EMAIL_RE.test(String(e).toLowerCase());
 
-// ─── Helmet ───────────────────────────────────────────────────────────────────
+// ── Helmet (security headers) ────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -33,21 +38,20 @@ app.use(helmet({
   }
 }));
 
-// ─── Rate limiters ────────────────────────────────────────────────────────────
+// ── Rate limiters ────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, max: 10,
   message: { success: false, message: '⏳ Too many attempts. Try after 15 min.' },
   standardHeaders: true, legacyHeaders: false
 });
-
 const sendLimiter = rateLimit({
   windowMs: 60 * 1000, max: 5,
-  message: { success: false, message: '⏳ Too many send requests. Wait 1 minute.' },
+  message: { success: false, message: '⏳ Too many requests. Wait 1 minute.' },
   keyGenerator: req => req.session?.user || req.ip,
   standardHeaders: true, legacyHeaders: false
 });
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
+// ── Middleware ───────────────────────────────────────────────────────────────
 app.use(bodyParser.urlencoded({ extended: true, limit: '2mb' }));
 app.use(bodyParser.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -61,7 +65,7 @@ function requireAuth(req, res, next) {
   res.redirect('/');
 }
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
+// ── Routes ───────────────────────────────────────────────────────────────────
 app.get('/', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'login.html')));
 
@@ -90,100 +94,72 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const delay = ms => new Promise(r => setTimeout(r, ms));
-const makeMessageId = domain => `<${uuidv4()}@${domain}>`;
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const delay        = ms => new Promise(r => setTimeout(r, ms));
+const makeId       = domain => `<${uuidv4()}@${domain}>`;
+const randomInt    = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-// ─── Spam word replacer ───────────────────────────────────────────────────────
-// Common spam-trigger words replaced with neutral equivalents
-const SPAM_MAP = [
-  [/\bfree\b/gi,          'complimentary'],
-  [/\bcash\b/gi,          'funds'],
-  [/\bmoney\b/gi,         'amount'],
-  [/\bwin\b/gi,           'receive'],
-  [/\bwinner\b/gi,        'selected recipient'],
-  [/\boffer\b/gi,         'opportunity'],
-  [/\bguaranteed\b/gi,    'confirmed'],
-  [/\burgent\b/gi,        'important'],
-  [/\bclick here\b/gi,    'see details below'],
-  [/\bact now\b/gi,       'kindly review'],
-  [/\blimited time\b/gi,  'currently available'],
-  [/\bdiscount\b/gi,      'reduced rate'],
-  [/\b100%\b/gi,          'fully'],
-  [/\bearning\b/gi,       'receiving'],
-  [/\bprofit\b/gi,        'benefit'],
-  [/\bprize\b/gi,         'reward'],
-  [/\bbonus\b/gi,         'additional benefit'],
-  [/\bpromote\b/gi,       'share'],
-  [/\bmarketing\b/gi,     'communication'],
-  [/\bbuy now\b/gi,       'learn more'],
-  [/\border now\b/gi,     'get started'],
-];
+// ── HTML builder — plain, top-left, zero links, zero images ─────────────────
+// Bilkul normal human email jaisi — Gmail ke pehle screenshot ki tarah
+function buildMail(rawBody, rawSubject) {
+  const body    = String(rawBody    || '').trim();
+  const subject = String(rawSubject || '').trim();
 
-function replaceSafeWords(text) {
-  let out = text;
-  for (const [pat, rep] of SPAM_MAP) out = out.replace(pat, rep);
-  return out;
-}
-
-// ─── Clean HTML template — plain natural email like a normal Gmail message ────
-function buildMail(bodyRaw, subjectRaw) {
-  const body    = replaceSafeWords(bodyRaw);
-  const subject = replaceSafeWords(subjectRaw);
-
+  // Escape HTML — no injections
   const escaped = body
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>');
 
-  // Plain style — no centering, no wrapper table, starts from top-left
-  // exactly like a normal human-written Gmail message
+  // ✅ Plain natural HTML — no table, no center, no wrapper
+  // Exactly like a human typing in Gmail
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#1a1a1a;">
-  <div style="padding:12px 16px;">
-    ${escaped}
-  </div>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#202124;background:#fff;">
+<div style="padding:8px 0;">${escaped}</div>
 </body>
 </html>`;
 
   return { html, text: body, subject };
 }
 
-// ─── Fast sender — 3 parallel, 600ms gap, fresh Message-ID per mail ──────────
-// Speed: ~180–200 mails/min — fast and Gmail-safe
-async function sendFast(transporter, mails, senderDomain) {
-  const BATCH  = 3;    // 3 mails ek saath parallel
-  const GAP    = 600;  // 600ms gap between batches
+// ── Slow safe sender — 1 mail at a time, random delay ───────────────────────
+// Random delay 3–6 sec between each mail
+// Reason: human-like pattern = max inbox rate, minimum spam detection
+async function sendSlow(transporter, mails, senderDomain) {
   const results = [];
+  for (let i = 0; i < mails.length; i++) {
+    const mail = {
+      ...mails[i],
+      headers: {
+        ...mails[i].headers,
+        // Fresh unique Message-ID per mail — critical for inbox delivery
+        'Message-ID': makeId(senderDomain)
+      }
+    };
+    const result = await Promise.allSettled([transporter.sendMail(mail)]);
+    results.push(result[0]);
 
-  for (let i = 0; i < mails.length; i += BATCH) {
-    const batch = mails.slice(i, i + BATCH).map(m => ({
-      ...m,
-      headers: { ...m.headers, 'Message-ID': makeMessageId(senderDomain) }
-    }));
-
-    const settled = await Promise.allSettled(batch.map(m => transporter.sendMail(m)));
-    results.push(...settled);
-
-    if (i + BATCH < mails.length) await delay(GAP);
+    // Random delay 3–6 seconds — looks like human sending, avoids bulk detection
+    if (i < mails.length - 1) {
+      await delay(randomInt(3000, 6000));
+    }
   }
   return results;
 }
 
-// ─── /send ────────────────────────────────────────────────────────────────────
+// ── /send ────────────────────────────────────────────────────────────────────
 app.post('/send', requireAuth, sendLimiter, async (req, res) => {
   try {
-    const senderName = xss(String(req.body.senderName || 'Team').trim()).slice(0, 100);
+    const senderName = xss(String(req.body.senderName || '').trim()).slice(0, 100);
     const email      = String(req.body.email     || '').trim().toLowerCase();
     const password   = String(req.body.password  || '').trim();
-    const subjectRaw = xss(String(req.body.subject  || 'Hello').trim()).slice(0, 998);
+    const subjectRaw = xss(String(req.body.subject  || '').trim()).slice(0, 998);
     const messageRaw = String(req.body.message   || '').trim().slice(0, 50000);
     const recipients = String(req.body.recipients || '');
 
@@ -191,6 +167,10 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       return res.json({ success: false, message: '❌ Invalid sender Gmail address' });
     if (!password)
       return res.json({ success: false, message: '❌ App Password required' });
+    if (!subjectRaw)
+      return res.json({ success: false, message: '❌ Subject required' });
+    if (!messageRaw)
+      return res.json({ success: false, message: '❌ Message body required' });
 
     const recipientList = recipients
       .split(/[\n,]+/)
@@ -204,11 +184,12 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
 
     const senderDomain = email.split('@')[1] || 'gmail.com';
     const campaignId   = crypto.randomBytes(8).toString('hex');
-    const safeName     = senderName.replace(/[<>"]/g, '');
+    const safeName     = senderName.replace(/[<>"]/g, '') || 'Team';
 
     const { html, text, subject } = buildMail(messageRaw, subjectRaw);
 
-    // Pooled transporter — fast parallel sending
+    // ✅ Port 587 STARTTLS — best deliverability for Gmail
+    // No pool — one connection per mail = human-like, max inbox
     const transporter = nodemailer.createTransport({
       host      : 'smtp.gmail.com',
       port      : 587,
@@ -216,32 +197,36 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       requireTLS: true,
       auth      : { user: email, pass: password },
       tls       : { rejectUnauthorized: true },
-      pool      : true,
-      maxConnections: 3,
-      maxMessages   : 100,
-      socketTimeout : 15000
+      socketTimeout: 15000
     });
 
+    // Verify SMTP auth before starting
     await transporter.verify();
 
+    // Build mail list
     const mails = recipientList.map((to, idx) => ({
       from   : `"${safeName}" <${email}>`,
+      replyTo: email,          // reply-to same as sender — trust signal
       to,
       subject,
-      text,
-      html,
+      text,                    // plain text — required, improves inbox rate
+      html,                    // html — required, improves inbox rate
       headers: {
-        'Message-ID'            : makeMessageId(senderDomain),
+        'Message-ID'            : makeId(senderDomain),
+        // Unsubscribe — Gmail requires this for bulk, improves reputation
         'List-Unsubscribe'      : `<mailto:${email}?subject=Unsubscribe>`,
         'List-Unsubscribe-Post' : 'List-Unsubscribe=One-Click',
         'Precedence'            : 'bulk',
         'X-Mailer'              : 'FastMailer/1.0',
         'X-Campaign-ID'         : campaignId,
-        'X-Sequence'            : String(idx + 1)
+        'X-Sequence'            : String(idx + 1),
+        // MIME version — some filters check this
+        'MIME-Version'          : '1.0'
       }
     }));
 
-    const results = await sendFast(transporter, mails, senderDomain);
+    // Send one by one, slow + random — max inbox
+    const results  = await sendSlow(transporter, mails, senderDomain);
     transporter.close();
 
     const sent   = results.filter(r => r.status === 'fulfilled').length;
@@ -256,12 +241,13 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
     console.error('Send error:', err.code || err.message);
     let msg = '❌ Something went wrong. Try again.';
     if (/auth|credentials|password|login/i.test(err.message))
-      msg = '❌ Gmail auth failed. Use App Password (not your Gmail password).';
+      msg = '❌ Gmail auth failed. Use App Password — not your Gmail password.';
     else if (/ECONNREFUSED|ETIMEDOUT|getaddrinfo/i.test(err.message))
-      msg = '❌ Cannot connect to Gmail SMTP. Check internet.';
+      msg = '❌ Cannot connect to Gmail SMTP. Check internet connection.';
     return res.json({ success: false, message: msg });
   }
 });
 
+// ── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () =>
   console.log(`🚀 Fast Mailer → http://localhost:${PORT}`));
