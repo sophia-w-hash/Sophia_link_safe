@@ -1,6 +1,6 @@
 // script.js
 
-// ─── Double-click logout ──────────────────────────────────────────────────────
+// ── Double-click logout ───────────────────────────────────────────────────────
 const logoutBtn = document.getElementById('logoutBtn');
 if (logoutBtn) {
   let clicks = 0;
@@ -19,7 +19,7 @@ if (logoutBtn) {
   });
 }
 
-// ─── Live recipient counter ───────────────────────────────────────────────────
+// ── Live recipient counter ────────────────────────────────────────────────────
 const rcEl    = document.getElementById('recipients');
 const rcCount = document.getElementById('rcCount');
 if (rcEl && rcCount) {
@@ -33,31 +33,43 @@ if (rcEl && rcCount) {
   });
 }
 
-// ─── Send ─────────────────────────────────────────────────────────────────────
+// ── Send ──────────────────────────────────────────────────────────────────────
 document.getElementById('sendBtn')?.addEventListener('click', () => {
-  const senderName = document.getElementById('senderName').value.trim();
-  const email      = document.getElementById('email').value.trim();
-  const password   = document.getElementById('pass').value.trim();
   const subject    = document.getElementById('subject').value.trim();
   const message    = document.getElementById('message').value.trim();
   const recipients = document.getElementById('recipients').value.trim();
   const status     = document.getElementById('statusMessage');
   const btn        = document.getElementById('sendBtn');
 
-  if (!email || !password || !recipients) {
-    status.innerText   = '❌ Gmail, App Password and Recipients required';
+  if (!subject) {
+    status.innerText   = '❌ Subject required';
     status.style.color = '#ef4444';
     return;
   }
+  if (!message) {
+    status.innerText   = '❌ Message body required';
+    status.style.color = '#ef4444';
+    return;
+  }
+  if (!recipients) {
+    status.innerText   = '❌ Recipients required';
+    status.style.color = '#ef4444';
+    return;
+  }
+
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  if (!emailRe.test(email)) {
-    status.innerText   = '❌ Enter a valid Gmail address';
+  const count   = recipients.split(/[\n,]+/).map(r => r.trim()).filter(r => emailRe.test(r)).length;
+
+  if (count === 0) {
+    status.innerText   = '❌ No valid emails found';
     status.style.color = '#ef4444';
     return;
   }
-  const count = recipients.split(/[\n,]+/).map(r=>r.trim()).filter(r=>emailRe.test(r)).length;
-  if (count === 0) { status.innerText = '❌ No valid emails found'; status.style.color='#ef4444'; return; }
-  if (count > 500) { status.innerText = '❌ Max 500 recipients'; status.style.color='#ef4444'; return; }
+  if (count > 500) {
+    status.innerText   = '❌ Max 500 recipients allowed';
+    status.style.color = '#ef4444';
+    return;
+  }
 
   btn.disabled       = true;
   btn.innerText      = '⏳ Sending...';
@@ -65,9 +77,9 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
   status.style.color = '#3b82f6';
 
   fetch('/send', {
-    method: 'POST',
+    method : 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ senderName, email, password, subject, message, recipients })
+    body   : JSON.stringify({ subject, message, recipients })
   })
   .then(r => r.json())
   .then(data => {
