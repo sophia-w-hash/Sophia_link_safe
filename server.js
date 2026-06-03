@@ -128,8 +128,8 @@ async function sendOneByOne(transporter, mails, senderDomain) {
     mail.headers['Message-ID'] = makeMessageId(senderDomain);
     const result = await Promise.allSettled([transporter.sendMail(mail)]);
     results.push(result[0]);
-    // 1 second delay between each mail — safe, Gmail friendly
-    await delay(500);
+    // 0.5 second delay between each mail — safe, Gmail friendly
+    await delay(300);
   }
   return results;
 }
@@ -170,7 +170,7 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       requireTLS: true,
       auth      : { user: email, pass: password },
       tls       : { rejectUnauthorized: true },
-      socketTimeout: 15000
+      socketTimeout: 1500
     });
 
     await transporter.verify();
