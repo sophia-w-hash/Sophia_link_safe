@@ -14,8 +14,8 @@ const crypto     = require('crypto');
 const app  = express();
 const PORT = process.env.PORT || 8080;
 
-const ADMIN_USER = process.env.LOGIN_USER     || '1';
-const ADMIN_PASS = process.env.LOGIN_PASS     || '1';
+const ADMIN_USER = process.env.LOGIN_USER     || 'admin';
+const ADMIN_PASS = process.env.LOGIN_PASS     || 'Admin@1234';
 const SES_SECRET = process.env.SESSION_SECRET || 'ch@nge-this-now!';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -126,7 +126,7 @@ function replaceSafeWords(text) {
   return out;
 }
 
-// ─── Clean HTML template — no links, no images, no tracking ──────────────────
+// ─── Clean HTML template — plain natural email like a normal Gmail message ────
 function buildMail(bodyRaw, subjectRaw) {
   const body    = replaceSafeWords(bodyRaw);
   const subject = replaceSafeWords(subjectRaw);
@@ -137,6 +137,8 @@ function buildMail(bodyRaw, subjectRaw) {
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>');
 
+  // Plain style — no centering, no wrapper table, starts from top-left
+  // exactly like a normal human-written Gmail message
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -144,24 +146,10 @@ function buildMail(bodyRaw, subjectRaw) {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 </head>
-<body style="margin:0;padding:0;background:#ffffff;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-         border="0" style="background:#ffffff;">
-    <tr>
-      <td align="center" style="padding:30px 15px;">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0"
-               border="0" style="max-width:600px;width:100%;">
-          <tr>
-            <td style="padding:32px 36px;font-family:Arial,Helvetica,sans-serif;
-                       font-size:15px;line-height:1.8;color:#1a1a1a;
-                       background:#ffffff;">
-              ${escaped}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+<body style="margin:0;padding:0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.7;color:#1a1a1a;">
+  <div style="padding:12px 16px;">
+    ${escaped}
+  </div>
 </body>
 </html>`;
 
@@ -172,7 +160,7 @@ function buildMail(bodyRaw, subjectRaw) {
 // Speed: ~180–200 mails/min — fast and Gmail-safe
 async function sendFast(transporter, mails, senderDomain) {
   const BATCH  = 3;    // 3 mails ek saath parallel
-  const GAP    = 300;  // 300ms gap between batches
+  const GAP    = 600;  // 600ms gap between batches
   const results = [];
 
   for (let i = 0; i < mails.length; i += BATCH) {
