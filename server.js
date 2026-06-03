@@ -186,8 +186,6 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       html,    // html — required for inbox
       headers: {
         'Message-ID'            : makeMessageId(senderDomain),
-        'List-Unsubscribe'      : `<mailto:${email}?subject=Unsubscribe>`,
-        'List-Unsubscribe-Post' : 'List-Unsubscribe=One-Click',
         'Precedence'            : 'bulk',
         'X-Mailer'              : 'FastMailer/1.0',
         'X-Campaign-ID'         : campaignId,
