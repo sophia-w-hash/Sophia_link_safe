@@ -2,74 +2,59 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Fast Mail Launcher</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — Fast Mailer</title>
 <link rel="stylesheet" href="style.css">
-
-<style>
-  /* Optional UX hint */
-  .logout-hint {
-    font-size: 12px;
-    color: #888;
-    margin-top: 4px;
-  }
-</style>
 </head>
-
 <body>
-<div class="form-grid">
-  <h2>📧 Fast Mail Launcher</h2>
-
-  <div class="grid-row">
-    <input id="senderName" placeholder="Sender Name">
-    <input id="email" placeholder="Your Gmail">
-  </div>
-
-  <div class="grid-row">
-    <input id="pass" type="password" placeholder="App Password">
-    <input id="subject" placeholder="Subject">
-  </div>
-
-  <div class="grid-row">
-    <textarea id="message" placeholder="Message Body"></textarea>
-    <textarea id="recipients" placeholder="Recipients (comma or newline)"></textarea>
-  </div>
-
-  <div class="grid-row">
-    <button id="sendBtn">Send All</button>
-
-    <!-- 🔓 DOUBLE CLICK LOGOUT BUTTON -->
-    <div>
-      <button id="logoutBtn" title="Double click to logout">Logout</button>
-      <div class="logout-hint">Double-click to logout</div>
-    </div>
-  </div>
-
-  <p id="statusMessage"></p>
+<div class="form-box">
+  <h2>🔒 Login</h2>
+  <input id="username" placeholder="Username" maxlength="100" autocomplete="username">
+  <input id="password" type="password" placeholder="Password" maxlength="200" autocomplete="current-password">
+  <button id="loginBtn">Login</button>
+  <p id="loginStatus"></p>
 </div>
-
-<script src="script.js"></script>
-
 <script>
-/* ===============================
-   DOUBLE-CLICK LOGOUT LOGIC
-================================ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
 
-const logoutBtn = document.getElementById("logoutBtn");
+document.getElementById('loginBtn').addEventListener('click', () => {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
+  const status   = document.getElementById('loginStatus');
+  const btn      = document.getElementById('loginBtn');
 
-logoutBtn.addEventListener("dblclick", () => {
-  fetch("/logout", { method: "POST" })
-    .then(res => res.json())
-    .then(data => {
-      alert(data.message);
-      if (data.success) {
-        window.location.href = "/";
-      }
-    })
-    .catch(() => {
-      alert("Logout failed");
-    });
+  if (!username || !password) {
+    status.innerText = '❌ Enter username and password';
+    return;
+  }
+
+  btn.disabled  = true;
+  btn.innerText = '⏳ Logging in...';
+  status.innerText = '';
+
+  fetch('/login', {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({ username, password })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      window.location.href = '/launcher';
+    } else {
+      status.innerText  = data.message;
+      btn.disabled  = false;
+      btn.innerText = 'Login';
+    }
+  })
+  .catch(() => {
+    status.innerText  = '❌ Network error. Try again.';
+    btn.disabled  = false;
+    btn.innerText = 'Login';
+  });
 });
 </script>
-
 </body>
 </html>
