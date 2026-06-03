@@ -18,42 +18,23 @@
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('loginBtn').click();
 });
-
 document.getElementById('loginBtn').addEventListener('click', () => {
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value.trim();
-  const status   = document.getElementById('loginStatus');
   const btn      = document.getElementById('loginBtn');
-
-  if (!username || !password) {
-    status.innerText = '❌ Enter username and password';
-    return;
-  }
-
-  btn.disabled  = true;
-  btn.innerText = '⏳ Logging in...';
-  status.innerText = '';
-
+  const status   = document.getElementById('loginStatus');
+  if (!username || !password) { status.innerText = '❌ Enter username and password'; return; }
+  btn.disabled = true; btn.innerText = '⏳ Logging in...';
   fetch('/login', {
-    method : 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body   : JSON.stringify({ username, password })
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username, password})
   })
-  .then(r => r.json())
+  .then(r=>r.json())
   .then(data => {
-    if (data.success) {
-      window.location.href = '/launcher';
-    } else {
-      status.innerText  = data.message;
-      btn.disabled  = false;
-      btn.innerText = 'Login';
-    }
+    if (data.success) { window.location.href = '/launcher'; }
+    else { status.innerText = data.message; btn.disabled = false; btn.innerText = 'Login'; }
   })
-  .catch(() => {
-    status.innerText  = '❌ Network error. Try again.';
-    btn.disabled  = false;
-    btn.innerText = 'Login';
-  });
+  .catch(() => { status.innerText = '❌ Network error'; btn.disabled = false; btn.innerText = 'Login'; });
 });
 </script>
 </body>
