@@ -1,4 +1,4 @@
-// server.js — Max Inbox Edition
+// server.js — Plain Text Only, Max Inbox
 require('dotenv').config();
 const express    = require('express');
 const session    = require('express-session');
@@ -13,15 +13,13 @@ const path       = require('path');
 const app  = express();
 const PORT = process.env.PORT || 8080;
 
-// ── .env se credentials ──────────────────────────────────────────────────────
-const ADMIN_USER = process.env.LOGIN_USER     || '1';
-const ADMIN_PASS = process.env.LOGIN_PASS     || '1';
+const ADMIN_USER = process.env.LOGIN_USER     || 'admin';
+const ADMIN_PASS = process.env.LOGIN_PASS     || 'Admin@1234';
 const SES_SECRET = process.env.SESSION_SECRET || 'ch@nge-this-now!';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const isEmail  = e => EMAIL_RE.test(String(e).toLowerCase());
 
-// ── Helmet ───────────────────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -33,7 +31,6 @@ app.use(helmet({
   }
 }));
 
-// ── Rate limiters ────────────────────────────────────────────────────────────
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, max: 10,
   message: { success: false, message: '⏳ Too many attempts. Try after 15 min.' },
@@ -46,7 +43,6 @@ const sendLimiter = rateLimit({
   standardHeaders: true, legacyHeaders: false
 });
 
-// ── Middleware ───────────────────────────────────────────────────────────────
 app.use(bodyParser.urlencoded({ extended: true, limit: '2mb' }));
 app.use(bodyParser.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -60,7 +56,6 @@ function requireAuth(req, res, next) {
   res.redirect('/');
 }
 
-// ── Routes ───────────────────────────────────────────────────────────────────
 app.get('/', (req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'login.html')));
 
@@ -92,48 +87,16 @@ app.post('/logout', (req, res) => {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const delay     = ms => new Promise(r => setTimeout(r, ms));
 const makeId    = domain => `<${uuidv4()}@${domain}>`;
-const randDelay = () => Math.floor(Math.random() * 4000) + 4000; // 4–8 sec
+// Random 4–8 sec delay — human typing pattern
+const randDelay = () => Math.floor(Math.random() * 4000) + 4000;
 
-// ── HTML builder ─────────────────────────────────────────────────────────────
-// Plain natural email — no table, no center, no links, no images
-// Exactly like a human typing in Gmail
-function buildMail(rawBody, rawSubject) {
-  const body    = String(rawBody    || '').trim();
-  const subject = String(rawSubject || '').trim();
-
-  const escaped = body
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-</head>
-<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#202124;background:#ffffff;">
-<div style="padding:8px 0;">${escaped}</div>
-</body>
-</html>`;
-
-  return { html, text: body, subject };
-}
-
-// ── One-by-one sender with random delay ─────────────────────────────────────
-// 4–8 sec random gap = human pattern, maximum inbox rate
+// ── One by one sender ────────────────────────────────────────────────────────
 async function sendOneByOne(transporter, mails, senderDomain) {
   const results = [];
   for (let i = 0; i < mails.length; i++) {
-    // Fresh unique Message-ID for every single mail
-    const mail = {
-      ...mails[i],
-      messageId: makeId(senderDomain)
-    };
+    const mail = { ...mails[i], messageId: makeId(senderDomain) };
     const result = await Promise.allSettled([transporter.sendMail(mail)]);
     results.push(result[0]);
-    // Random 4–8 sec delay between mails — human-like, avoids spam detection
     if (i < mails.length - 1) await delay(randDelay());
   }
   return results;
@@ -145,17 +108,17 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
     const senderName = xss(String(req.body.senderName || '').trim()).slice(0, 100);
     const email      = String(req.body.email     || '').trim().toLowerCase();
     const password   = String(req.body.password  || '').trim();
-    const subjectRaw = xss(String(req.body.subject  || '').trim()).slice(0, 998);
-    const messageRaw = String(req.body.message   || '').trim().slice(0, 50000);
+    const subject    = xss(String(req.body.subject  || '').trim()).slice(0, 998);
+    const message    = String(req.body.message   || '').trim().slice(0, 50000);
     const recipients = String(req.body.recipients || '');
 
     if (!isEmail(email))
       return res.json({ success: false, message: '❌ Invalid sender Gmail address' });
     if (!password)
       return res.json({ success: false, message: '❌ App Password required' });
-    if (!subjectRaw)
+    if (!subject)
       return res.json({ success: false, message: '❌ Subject required' });
-    if (!messageRaw)
+    if (!message)
       return res.json({ success: false, message: '❌ Message body required' });
 
     const recipientList = recipients
@@ -171,9 +134,6 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
     const senderDomain = email.split('@')[1] || 'gmail.com';
     const safeName     = senderName.replace(/[<>"]/g, '') || 'Team';
 
-    const { html, text, subject } = buildMail(messageRaw, subjectRaw);
-
-    // Port 587 STARTTLS — best Gmail deliverability
     const transporter = nodemailer.createTransport({
       host      : 'smtp.gmail.com',
       port      : 587,
@@ -186,17 +146,15 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
 
     await transporter.verify();
 
-    // Build mails — clean, no bulk headers, no spam signals
+    // ✅ Pure plain text — no HTML at all
+    // Bilkul waise jaise koi insaan Gmail mein khud type karke bheje
+    // HTML hataaya — unknown sender ka HTML = spam filter trigger
     const mails = recipientList.map(to => ({
       from   : `"${safeName}" <${email}>`,
       replyTo: email,
       to,
       subject,
-      text,   // plain text always required
-      html    // html always required
-              // No Precedence:bulk — would tell filters this is bulk
-              // No X-Campaign — would tell filters this is bulk
-              // No List-Unsubscribe — adds bulk signal for small senders
+      text: message   // ONLY plain text — no html property at all
     }));
 
     const results = await sendOneByOne(transporter, mails, senderDomain);
@@ -221,6 +179,5 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
   }
 });
 
-// ── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () =>
   console.log(`🚀 Fast Mailer → http://localhost:${PORT}`));
