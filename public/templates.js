@@ -1,3 +1,45 @@
+// ✅ Spam words auto-replace dictionary
+const SPAM_REPLACE = {
+  "website": ["site", "webpage", "web presence", "online page"],
+  "free": ["complimentary", "no cost", "on us"],
+  "guaranteed": ["assured", "confirmed", "proven"],
+  "click here": ["take a look", "check this out", "view here"],
+  "buy now": ["get started", "learn more", "explore now"],
+  "limited time": ["for a short while", "for now", "briefly"],
+  "offer": ["opportunity", "option", "proposal"],
+  "discount": ["savings", "reduced rate", "special rate"],
+  "prize": ["reward", "benefit", "advantage"],
+  "winner": ["selected", "chosen", "picked"],
+  "cash": ["funds", "payment", "amount"],
+  "urgent": ["important", "time-sensitive", "priority"],
+  "act now": ["reach out", "connect today", "get in touch"],
+  "problem": ["area to improve", "opportunity", "gap"],
+  "issue": ["observation", "finding", "point"],
+  "showing": ["appearing", "ranking", "visible"],
+  "first page": ["top results", "search rankings", "top positions"],
+  "ranking": ["visibility", "search presence", "online reach"],
+  "improve": ["enhance", "strengthen", "grow"],
+  "screenshot": ["visual", "snapshot", "preview"],
+  "screen shot": ["visual", "snapshot", "preview"],
+  "reliable": ["professional", "solid", "established"],
+  "not showing": ["could rank better", "has room to grow", "could be more visible"],
+  "may i": ["would you mind if", "i would like to", "i'd love to"],
+  "share": ["send across", "show", "present"],
+};
+
+// ✅ Auto replace function — random synonym pick karta hai
+function autoReplace(text) {
+  let result = text;
+  for (const [word, synonyms] of Object.entries(SPAM_REPLACE)) {
+    const regex = new RegExp(word, 'gi');
+    result = result.replace(regex, () => {
+      const random = synonyms[Math.floor(Math.random() * synonyms.length)];
+      return random;
+    });
+  }
+  return result;
+}
+
 const EMAIL_TEMPLATES = [
   {
     subject: "Noticed something on your website",
