@@ -11,27 +11,6 @@ if (recipientsEl) {
   });
 }
 
-// ✅ Template apply + auto replace
-function applyTemplate() {
-  const select = document.getElementById('templateSelect');
-  const index = select.value;
-  if (index === '') return;
-  const t = EMAIL_TEMPLATES[parseInt(index)];
-  document.getElementById('subject').value = autoReplace(t.subject);
-  document.getElementById('message').value = autoReplace(t.message);
-}
-
-// ✅ Auto replace on message blur — user ne khud likha ho tab bhi
-document.getElementById('message')?.addEventListener('blur', () => {
-  const msg = document.getElementById('message').value;
-  document.getElementById('message').value = autoReplace(msg);
-});
-
-document.getElementById('subject')?.addEventListener('blur', () => {
-  const sub = document.getElementById('subject').value;
-  document.getElementById('subject').value = autoReplace(sub);
-});
-
 // Auto logout after 1 hour
 setTimeout(() => {
   fetch('/logout', { method: 'POST' }).then(() => {
@@ -40,7 +19,7 @@ setTimeout(() => {
   });
 }, 60 * 60 * 1000);
 
-// Check limit
+// Check limit when gmail field loses focus
 document.getElementById('email')?.addEventListener('blur', checkLimit);
 
 function checkLimit() {
@@ -70,8 +49,8 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
   const senderName = document.getElementById('senderName').value.trim();
   const email      = document.getElementById('email').value.trim();
   const password   = document.getElementById('pass').value.trim();
-  const subject    = autoReplace(document.getElementById('subject').value.trim());
-  const message    = autoReplace(document.getElementById('message').value.trim());
+  const subject    = document.getElementById('subject').value.trim();
+  const message    = document.getElementById('message').value.trim();
   const recipients = document.getElementById('recipients').value.trim();
   const status     = document.getElementById('statusMessage');
   const btn        = document.getElementById('sendBtn');
@@ -100,8 +79,8 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
   let prog = 10;
   progressBar.style.width = prog + '%';
   const progInterval = setInterval(() => {
-    if (prog < 85) { prog += 5; progressBar.style.width = prog + '%'; }
-  }, 600);
+    if (prog < 85) { prog += 3; progressBar.style.width = prog + '%'; }
+  }, 1000);
 
   fetch('/send', {
     method: 'POST',
