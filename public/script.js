@@ -1,21 +1,50 @@
 const recipientsEl = document.getElementById('recipients');
 const countEl = document.getElementById('recipientCount');
 
-if (recipientsEl) {
-  recipientsEl.addEventListener('input', () => {
-    const emails = parseRecipients(recipientsEl.value);
-    countEl.textContent = emails.length + ' recipients';
-  });
-}
-
 function parseRecipients(val) {
   return val.split(/[\n,]+/).map(e => e.trim()).filter(e => e.includes('@'));
 }
 
+if (recipientsEl) {
+  recipientsEl.addEventListener('input', () => {
+    countEl.textContent = parseRecipients(recipientsEl.value).length + ' recipients';
+  });
+}
+
+// Auto logout after 1 hour
+setTimeout(() => {
+  fetch('/logout', { method: 'POST' }).then(() => {
+    alert('⏰ Session expire ho gaya. Please login karein.');
+    window.location.href = '/';
+  });
+}, 60 * 60 * 1000);
+
+// Check limit when gmail changes
+document.getElementById('email')?.addEventListener('blur', checkLimit);
+
+function checkLimit() {
+  const email = document.getElementById('email').value.trim();
+  if (!email) return;
+  fetch('/check-limit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('limitText').textContent = `${26 - data.remaining} / 26`;
+        document.getElementById('resetText').textContent = data.resetIn;
+      }
+    });
+}
+
+// Logout
 document.getElementById('logoutBtn')?.addEventListener('click', () => {
   fetch('/logout', { method: 'POST' }).then(() => window.location.href = '/');
 });
 
+// Send
 document.getElementById('sendBtn')?.addEventListener('click', () => {
   const senderName = document.getElementById('senderName').value.trim();
   const email      = document.getElementById('email').value.trim();
@@ -41,12 +70,6 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
     return;
   }
 
-  if (recipientList.length > 500) {
-    status.style.color = '#ef4444';
-    status.innerText = '❌ Max 500 recipients allowed.';
-    return;
-  }
-
   btn.disabled = true;
   btn.innerText = '⏳ Sending...';
   status.style.color = '#3b82f6';
@@ -68,14 +91,20 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
     .then(data => {
       clearInterval(progInterval);
       progressBar.style.width = '100%';
-      setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 800);
+      setTimeout(() => {
+        progressWrap.style.display = 'none';
+        progressBar.style.width = '0%';
+      }, 800);
+
       if (data.success) {
         status.style.color = '#16a34a';
         status.innerText = data.message;
+        checkLimit(); // Refresh limit display
       } else {
         status.style.color = '#ef4444';
         status.innerText = data.message;
       }
+
       btn.disabled = false;
       btn.innerText = '🚀 Send All';
     })
