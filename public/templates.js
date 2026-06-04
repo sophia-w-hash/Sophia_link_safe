@@ -32,10 +32,6 @@ const EMAIL_TEMPLATES = [
     message: "Hi, I came across your website and noticed something that could improve how customers find you."
   },
   {
-    subject: "Your site has good potential",
-    message: "Hi, I was looking at websites in your industry and found a useful insight I wanted to share."
-  },
-  {
     subject: "One thing I wanted to share",
     message: "Hi, I took a look at your website and found a small opportunity that could make a real difference."
   }
