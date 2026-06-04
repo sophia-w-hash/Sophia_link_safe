@@ -26,43 +26,6 @@ function getGmailUsage(gmail) {
   return gmailHourlyTracker[gmail];
 }
 
-// ✅ Spam words server side bhi replace honge
-const SPAM_REPLACE = {
-  "website": ["site", "webpage", "web presence", "online page"],
-  "free": ["complimentary", "no cost", "on us"],
-  "guaranteed": ["assured", "confirmed", "proven"],
-  "click here": ["take a look", "check this out", "view here"],
-  "buy now": ["get started", "learn more", "explore now"],
-  "limited time": ["for a short while", "for now", "briefly"],
-  "offer": ["opportunity", "option", "proposal"],
-  "discount": ["savings", "reduced rate", "special rate"],
-  "urgent": ["important", "time-sensitive", "priority"],
-  "act now": ["reach out", "connect today", "get in touch"],
-  "problem": ["area to improve", "opportunity", "gap"],
-  "issue": ["observation", "finding", "point"],
-  "first page": ["top results", "search rankings", "top positions"],
-  "ranking": ["visibility", "search presence", "online reach"],
-  "improve": ["enhance", "strengthen", "grow"],
-  "screenshot": ["visual", "snapshot", "preview"],
-  "screen shot": ["visual", "snapshot", "preview"],
-  "reliable": ["professional", "solid", "established"],
-  "not showing": ["could rank better", "has room to grow", "could be more visible"],
-  "may i": ["i would like to", "i'd love to", "would you mind if"],
-  "share": ["send across", "show", "present"],
-};
-
-function autoReplace(text) {
-  if (!text) return text;
-  let result = text;
-  for (const [word, synonyms] of Object.entries(SPAM_REPLACE)) {
-    const regex = new RegExp(`\\b${word}\\b`, 'gi');
-    result = result.replace(regex, () => {
-      return synonyms[Math.floor(Math.random() * synonyms.length)];
-    });
-  }
-  return result;
-}
-
 // Rate limiters
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -172,7 +135,7 @@ async function sendBatch(transporter, mails, batchSize = 3) {
       batch.map(m => transporter.sendMail(m))
     );
     results.push(...settled);
-    if (i + batchSize < mails.length) await delay(600);
+    if (i + batchSize < mails.length) await delay(800);
   }
   return results;
 }
@@ -221,37 +184,39 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       });
     }
 
-    // ✅ Gmail SMTP
+    // ✅ Gmail SMTP — best spam-safe settings
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      port: 587,        // ✅ 587 TLS — spam filters isko zyada trust karte hain
+      secure: false,    // TLS use karega
+      requireTLS: true, // ✅ Force TLS
       auth: {
         user: email,
         pass: password
       },
-      pool: true,
-      maxConnections: 3,
-      maxMessages: 100,
-      tls: { rejectUnauthorized: false }
+      tls: {
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
+      }
     });
 
     await transporter.verify();
 
-    const cleanName = sanitize(senderName) || 'Team';
+    const cleanName    = sanitize(senderName) || 'Team';
+    const cleanSubject = sanitize(subject);
+    const cleanMessage = sanitize(message);
 
-    // ✅ Har recipient ko alag subject + message — spam filter confuse hoga
-    const mails = recipientList.map((r, i) => {
-      const finalSubject = autoReplace(sanitize(subject));
-      const finalMessage = autoReplace(sanitize(message));
-
-      return {
-        from: `"${cleanName}" <${email}>`,
-        to: r,
-        subject: finalSubject,
-        text: finalMessage
-      };
-    });
+    // ✅ Plain text only — spam filters ko trigger nahi karta
+    const mails = recipientList.map(r => ({
+      from: `"${cleanName}" <${email}>`,
+      to: r,
+      subject: cleanSubject,
+      text: cleanMessage,
+      envelope: {
+        from: email,
+        to: r
+      }
+    }));
 
     const results = await sendBatch(transporter, mails, 3);
 
