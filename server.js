@@ -1,176 +1,160 @@
-// server.js
 require('dotenv').config();
-const express    = require('express');
-const session    = require('express-session');
+const express = require('express');
+const session = require('express-session');
 const bodyParser = require('body-parser');
 const nodemailer = require('nodemailer');
-const rateLimit  = require('express-rate-limit');
-const helmet     = require('helmet');
-const xss        = require('xss');
-const { v4: uuidv4 } = require('uuid');
-const path       = require('path');
+const rateLimit = require('express-rate-limit');
+const path = require('path');
 
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 8080;
 
-const ADMIN_USER = process.env.LOGIN_USER     || '1';
-const ADMIN_PASS = process.env.LOGIN_PASS     || '1';
-const SES_SECRET = process.env.SESSION_SECRET || 'ch@nge-this-now!';
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const isEmail  = e => EMAIL_RE.test(String(e).toLowerCase());
-
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc : ["'self'", "'unsafe-inline'"],
-      styleSrc  : ["'self'", "'unsafe-inline'"],
-      imgSrc    : ["'self'", "data:"]
-    }
-  }
-}));
+const HARD_USERNAME = process.env.LOGIN_USER || "1";
+const HARD_PASSWORD = process.env.LOGIN_PASS || "1";
 
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, max: 10,
-  message: { success: false, message: '⏳ Too many attempts. Try after 15 min.' },
-  standardHeaders: true, legacyHeaders: false
-});
-const sendLimiter = rateLimit({
-  windowMs: 60 * 1000, max: 5,
-  message: { success: false, message: '⏳ Too many requests. Wait 1 minute.' },
-  keyGenerator: req => req.session?.user || req.ip,
-  standardHeaders: true, legacyHeaders: false
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: "❌ Too many attempts. Try after 15 min." }
 });
 
-app.use(bodyParser.urlencoded({ extended: true, limit: '2mb' }));
-app.use(bodyParser.json({ limit: '2mb' }));
+const sendLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { success: false, message: "❌ Too many send requests. Wait 1 minute." }
+});
+
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-  secret: SES_SECRET, resave: false, saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: 'strict', maxAge: 4 * 60 * 60 * 1000 }
+  secret: process.env.SESSION_SECRET || 'fast-mailer-super-secret-2024',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { httpOnly: true, maxAge: 2 * 60 * 60 * 1000 }
 }));
 
 function requireAuth(req, res, next) {
   if (req.session.user) return next();
-  res.redirect('/');
+  return res.redirect('/');
 }
 
-app.get('/', (req, res) =>
-  res.sendFile(path.join(__dirname, 'public', 'login.html')));
-
-app.post('/login', loginLimiter, (req, res) => {
-  const user = xss(String(req.body.username || '').trim()).slice(0, 100);
-  const pass = String(req.body.password || '').trim().slice(0, 200);
-  if (!user || !pass)
-    return res.json({ success: false, message: '❌ Username and password required' });
-  if (user === ADMIN_USER && pass === ADMIN_PASS) {
-    req.session.regenerate(() => {
-      req.session.user = user;
-      res.json({ success: true });
-    });
-  } else {
-    res.json({ success: false, message: '❌ Invalid credentials' });
-  }
+app.get('/', (req, res) => {
+  if (req.session.user) return res.redirect('/launcher');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.get('/launcher', requireAuth, (req, res) =>
-  res.sendFile(path.join(__dirname, 'public', 'launcher.html')));
+app.post('/login', loginLimiter, (req, res) => {
+  const { username, password } = req.body;
+  if (username === HARD_USERNAME && password === HARD_PASSWORD) {
+    req.session.user = username;
+    return res.json({ success: true });
+  }
+  return res.json({ success: false, message: "❌ Invalid credentials" });
+});
+
+app.get('/launcher', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'launcher.html'));
+});
 
 app.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.clearCookie('connect.sid');
-    res.json({ success: true });
+    return res.json({ success: true });
   });
 });
 
-const delay     = ms => new Promise(r => setTimeout(r, ms));
-const makeId    = domain => `<${uuidv4()}@${domain}>`;
-const randDelay = () => Math.floor(Math.random() * 300) + 300; // 0.5–1 sec
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-async function sendOneByOne(transporter, mails, senderDomain) {
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+async function sendBatch(transporter, mails, batchSize = 3) {
   const results = [];
-  for (let i = 0; i < mails.length; i++) {
-    const mail = { ...mails[i], messageId: makeId(senderDomain) };
-    const result = await Promise.allSettled([transporter.sendMail(mail)]);
-    results.push(result[0]);
-    if (i < mails.length - 1) await delay(randDelay());
+  for (let i = 0; i < mails.length; i += batchSize) {
+    const batch = mails.slice(i, i + batchSize);
+    const settled = await Promise.allSettled(batch.map(m => transporter.sendMail(m)));
+    results.push(...settled);
+    if (i + batchSize < mails.length) await delay(500);
   }
   return results;
 }
 
 app.post('/send', requireAuth, sendLimiter, async (req, res) => {
   try {
-    const senderName = xss(String(req.body.senderName || '').trim()).slice(0, 100);
-    const email      = String(req.body.email     || '').trim().toLowerCase();
-    const password   = String(req.body.password  || '').trim();
-    const subject    = xss(String(req.body.subject  || '').trim()).slice(0, 998);
-    const message    = String(req.body.message   || '').trim().slice(0, 50000);
-    const recipients = String(req.body.recipients || '');
+    const { senderName, email, password, recipients, subject, message } = req.body;
 
-    if (!isEmail(email))
-      return res.json({ success: false, message: '❌ Invalid Gmail address' });
-    if (!password)
-      return res.json({ success: false, message: '❌ App Password required' });
-    if (!subject)
-      return res.json({ success: false, message: '❌ Subject required' });
-    if (!message)
-      return res.json({ success: false, message: '❌ Message required' });
+    if (!email || !password || !recipients || !subject || !message) {
+      return res.json({ success: false, message: "❌ Sab fields required hain." });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.json({ success: false, message: "❌ Invalid Gmail address." });
+    }
 
     const recipientList = recipients
       .split(/[\n,]+/)
-      .map(r => r.trim().toLowerCase())
-      .filter(r => isEmail(r));
+      .map(r => r.trim())
+      .filter(r => r && isValidEmail(r));
 
-    if (recipientList.length === 0)
-      return res.json({ success: false, message: '❌ No valid emails found' });
-    if (recipientList.length > 500)
-      return res.json({ success: false, message: '❌ Max 500 recipients' });
+    if (recipientList.length === 0) {
+      return res.json({ success: false, message: "❌ Koi valid recipient nahi mila." });
+    }
 
-    const senderDomain = email.split('@')[1] || 'gmail.com';
-    const safeName     = senderName.replace(/[<>"]/g, '') || 'Team';
+    if (recipientList.length > 500) {
+      return res.json({ success: false, message: "❌ Max 500 recipients allowed." });
+    }
 
     const transporter = nodemailer.createTransport({
-      host      : 'smtp.gmail.com',
-      port      : 587,
-      secure    : false,
-      requireTLS: true,
-      auth      : { user: email, pass: password },
-      tls       : { rejectUnauthorized: true },
-      socketTimeout: 20000
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user: email, pass: password },
+      pool: true,
+      maxConnections: 3,
+      maxMessages: 50,
+      tls: { rejectUnauthorized: false }
     });
 
     await transporter.verify();
 
-    const mails = recipientList.map(to => ({
-      from   : `"${safeName}" <${email}>`,
-      replyTo: email,
-      to,
-      subject,
-      text   : message
+    const mails = recipientList.map(r => ({
+      from: `"${(senderName || 'Mail Team').replace(/[<>]/g, '')}" <${email}>`,
+      to: r,
+      subject: subject,
+      text: message,
+      html: `
+        <div style="font-family:Arial,sans-serif;font-size:15px;color:#222;line-height:1.7;max-width:600px;">
+          ${message.replace(/\n/g, '<br>')}
+          <br><br>
+          <hr style="border:none;border-top:1px solid #eee;">
+          <p style="color:#999;font-size:11px;">Sent by ${senderName || email}</p>
+        </div>
+      `,
+      headers: { 'X-Mailer': 'Nodemailer', 'X-Priority': '3' }
     }));
 
-    const results = await sendOneByOne(transporter, mails, senderDomain);
-    transporter.close();
-
+    const results = await sendBatch(transporter, mails, 3);
     const sent   = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
     return res.json({
       success: true,
-      message: `✅ Done! Sent: ${sent}${failed > 0 ? ` | ❌ Failed: ${failed}` : ''}`
+      message: `✅ ${sent} emails bheje! ${failed > 0 ? `❌ ${failed} fail hue.` : ''}`
     });
 
   } catch (err) {
-    console.error('Send error:', err.code || err.message);
-    let msg = '❌ Something went wrong. Try again.';
-    if (/auth|credentials|password|login/i.test(err.message))
-      msg = '❌ Gmail auth failed. Use App Password — not your Gmail password.';
-    else if (/ECONNREFUSED|ETIMEDOUT|getaddrinfo/i.test(err.message))
-      msg = '❌ Cannot connect to Gmail SMTP. Check internet.';
-    return res.json({ success: false, message: msg });
+    console.error("Send error:", err.message);
+    if (err.message.includes('Invalid login') || err.message.includes('Username and Password')) {
+      return res.json({ success: false, message: "❌ Gmail ya App Password galat hai." });
+    }
+    return res.json({ success: false, message: "❌ Error: " + err.message });
   }
 });
 
-app.listen(PORT, () =>
-  console.log(`🚀 Fast Mailer → http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Fast Mailer running → http://localhost:${PORT}`);
+});
