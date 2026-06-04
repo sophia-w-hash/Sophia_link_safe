@@ -11,15 +11,26 @@ if (recipientsEl) {
   });
 }
 
-// Template apply
+// ✅ Template apply + auto replace
 function applyTemplate() {
   const select = document.getElementById('templateSelect');
   const index = select.value;
   if (index === '') return;
   const t = EMAIL_TEMPLATES[parseInt(index)];
-  document.getElementById('subject').value = t.subject;
-  document.getElementById('message').value = t.message;
+  document.getElementById('subject').value = autoReplace(t.subject);
+  document.getElementById('message').value = autoReplace(t.message);
 }
+
+// ✅ Auto replace on message blur — user ne khud likha ho tab bhi
+document.getElementById('message')?.addEventListener('blur', () => {
+  const msg = document.getElementById('message').value;
+  document.getElementById('message').value = autoReplace(msg);
+});
+
+document.getElementById('subject')?.addEventListener('blur', () => {
+  const sub = document.getElementById('subject').value;
+  document.getElementById('subject').value = autoReplace(sub);
+});
 
 // Auto logout after 1 hour
 setTimeout(() => {
@@ -29,7 +40,7 @@ setTimeout(() => {
   });
 }, 60 * 60 * 1000);
 
-// Check limit when gmail field loses focus
+// Check limit
 document.getElementById('email')?.addEventListener('blur', checkLimit);
 
 function checkLimit() {
@@ -59,8 +70,8 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
   const senderName = document.getElementById('senderName').value.trim();
   const email      = document.getElementById('email').value.trim();
   const password   = document.getElementById('pass').value.trim();
-  const subject    = document.getElementById('subject').value.trim();
-  const message    = document.getElementById('message').value.trim();
+  const subject    = autoReplace(document.getElementById('subject').value.trim());
+  const message    = autoReplace(document.getElementById('message').value.trim());
   const recipients = document.getElementById('recipients').value.trim();
   const status     = document.getElementById('statusMessage');
   const btn        = document.getElementById('sendBtn');
@@ -105,7 +116,6 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
         progressWrap.style.display = 'none';
         progressBar.style.width = '0%';
       }, 800);
-
       if (data.success) {
         status.style.color = '#16a34a';
         status.innerText = data.message;
@@ -114,7 +124,6 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
         status.style.color = '#ef4444';
         status.innerText = data.message;
       }
-
       btn.disabled = false;
       btn.innerText = '🚀 Send All';
     })
