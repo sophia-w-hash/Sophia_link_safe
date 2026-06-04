@@ -1,33 +1,21 @@
-// script.js
+const recipientsEl = document.getElementById('recipients');
+const countEl = document.getElementById('recipientCount');
 
-// ── Double-click logout ───────────────────────────────────────────────────────
-const logoutBtn = document.getElementById('logoutBtn');
-if (logoutBtn) {
-  let clicks = 0;
-  logoutBtn.addEventListener('click', () => {
-    clicks++;
-    if (clicks === 1) {
-      logoutBtn.innerText = '⚠️ Click again to confirm';
-      setTimeout(() => { clicks = 0; logoutBtn.innerText = '🚪 Logout'; }, 2500);
-    } else {
-      fetch('/logout', { method: 'POST' }).then(() => window.location.href = '/');
-    }
+if (recipientsEl) {
+  recipientsEl.addEventListener('input', () => {
+    const emails = parseRecipients(recipientsEl.value);
+    countEl.textContent = emails.length + ' recipients';
   });
 }
 
-// ── Live recipient counter ────────────────────────────────────────────────────
-const rcEl    = document.getElementById('recipients');
-const rcCount = document.getElementById('rcCount');
-if (rcEl && rcCount) {
-  rcEl.addEventListener('input', () => {
-    const count = rcEl.value.split(/[\n,]+/).map(r=>r.trim())
-      .filter(r=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(r)).length;
-    rcCount.innerText   = count + ' recipient' + (count !== 1 ? 's' : '');
-    rcCount.style.color = count > 500 ? '#ef4444' : '#10b981';
-  });
+function parseRecipients(val) {
+  return val.split(/[\n,]+/).map(e => e.trim()).filter(e => e.includes('@'));
 }
 
-// ── Send ──────────────────────────────────────────────────────────────────────
+document.getElementById('logoutBtn')?.addEventListener('click', () => {
+  fetch('/logout', { method: 'POST' }).then(() => window.location.href = '/');
+});
+
 document.getElementById('sendBtn')?.addEventListener('click', () => {
   const senderName = document.getElementById('senderName').value.trim();
   const email      = document.getElementById('email').value.trim();
@@ -37,45 +25,66 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
   const recipients = document.getElementById('recipients').value.trim();
   const status     = document.getElementById('statusMessage');
   const btn        = document.getElementById('sendBtn');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar  = document.getElementById('progressBar');
 
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-  if (!email || !emailRe.test(email)) {
-    status.innerText = '❌ Valid Gmail required'; status.style.color = '#ef4444'; return;
-  }
-  if (!password) {
-    status.innerText = '❌ App Password required'; status.style.color = '#ef4444'; return;
-  }
-  if (!subject) {
-    status.innerText = '❌ Subject required'; status.style.color = '#ef4444'; return;
-  }
-  if (!message) {
-    status.innerText = '❌ Message required'; status.style.color = '#ef4444'; return;
+  if (!email || !password || !subject || !message || !recipients) {
+    status.style.color = '#ef4444';
+    status.innerText = '❌ Sab fields fill karo.';
+    return;
   }
 
-  const count = recipients.split(/[\n,]+/).map(r=>r.trim()).filter(r=>emailRe.test(r)).length;
-  if (count === 0) { status.innerText = '❌ No valid emails'; status.style.color='#ef4444'; return; }
-  if (count > 500) { status.innerText = '❌ Max 500 recipients'; status.style.color='#ef4444'; return; }
+  const recipientList = parseRecipients(recipients);
+  if (recipientList.length === 0) {
+    status.style.color = '#ef4444';
+    status.innerText = '❌ Koi valid email nahi mili.';
+    return;
+  }
 
-  btn.disabled = true; btn.innerText = '⏳ Sending...';
-  status.innerText = `📤 Sending to ${count} recipients...`;
+  if (recipientList.length > 500) {
+    status.style.color = '#ef4444';
+    status.innerText = '❌ Max 500 recipients allowed.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerText = '⏳ Sending...';
   status.style.color = '#3b82f6';
+  status.innerText = `⏳ ${recipientList.length} emails bhej rahe hain...`;
+  progressWrap.style.display = 'block';
+
+  let prog = 10;
+  progressBar.style.width = prog + '%';
+  const progInterval = setInterval(() => {
+    if (prog < 85) { prog += 5; progressBar.style.width = prog + '%'; }
+  }, 600);
 
   fetch('/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ senderName, email, password, subject, message, recipients })
   })
-  .then(r => r.json())
-  .then(data => {
-    status.innerText = data.message;
-    status.style.color = data.success ? '#10b981' : '#ef4444';
-    btn.disabled = false; btn.innerText = '🚀 Send All';
-    if (data.success) alert(data.message);
-  })
-  .catch(err => {
-    status.innerText = '❌ Network error: ' + err.message;
-    status.style.color = '#ef4444';
-    btn.disabled = false; btn.innerText = '🚀 Send All';
-  });
+    .then(r => r.json())
+    .then(data => {
+      clearInterval(progInterval);
+      progressBar.style.width = '100%';
+      setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 800);
+      if (data.success) {
+        status.style.color = '#16a34a';
+        status.innerText = data.message;
+      } else {
+        status.style.color = '#ef4444';
+        status.innerText = data.message;
+      }
+      btn.disabled = false;
+      btn.innerText = '🚀 Send All';
+    })
+    .catch(err => {
+      clearInterval(progInterval);
+      progressWrap.style.display = 'none';
+      status.style.color = '#ef4444';
+      status.innerText = '❌ Server error: ' + err.message;
+      btn.disabled = false;
+      btn.innerText = '🚀 Send All';
+    });
 });
