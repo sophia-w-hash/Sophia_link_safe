@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — Fast Mailer</title>
+  <title>Login — Safe Mailer</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="form-box">
-    <h2>🔒 Fast Mailer Login</h2>
+    <h2>🔒 Safe Mailer Login</h2>
     <input id="username" placeholder="Username" autocomplete="username" />
     <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
     <button id="loginBtn">Login</button>
@@ -18,13 +18,13 @@
     function doLogin() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
-      const status   = document.getElementById('loginStatus');
-      const btn      = document.getElementById('loginBtn');
+      const status = document.getElementById('loginStatus');
+      const btn = document.getElementById('loginBtn');
       if (!username || !password) {
-        status.innerText = '❌ Username aur password dono required hain.';
+        status.innerText = '❌ Username aur password required hain.';
         return;
       }
-      btn.disabled  = true;
+      btn.disabled = true;
       btn.innerText = '⏳ Logging in...';
       status.innerText = '';
       fetch('/login', {
@@ -38,13 +38,13 @@
             window.location.href = '/launcher';
           } else {
             status.innerText = data.message;
-            btn.disabled  = false;
+            btn.disabled = false;
             btn.innerText = 'Login';
           }
         })
         .catch(() => {
           status.innerText = '❌ Server se connect nahi ho pa raha.';
-          btn.disabled  = false;
+          btn.disabled = false;
           btn.innerText = 'Login';
         });
     }
