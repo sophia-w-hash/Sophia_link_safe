@@ -1,41 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login — Fast Mailer</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Fast Mailer</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="form-box">
-  <h2>🔒 Login</h2>
-  <input id="username" placeholder="Username" maxlength="100" autocomplete="username">
-  <input id="password" type="password" placeholder="Password" maxlength="200" autocomplete="current-password">
-  <button id="loginBtn">Login</button>
-  <p id="loginStatus"></p>
-</div>
-<script>
-document.addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('loginBtn').click();
-});
-document.getElementById('loginBtn').addEventListener('click', () => {
-  const username = document.getElementById('username').value.trim();
-  const password = document.getElementById('password').value.trim();
-  const btn      = document.getElementById('loginBtn');
-  const status   = document.getElementById('loginStatus');
-  if (!username || !password) { status.innerText = '❌ Enter username and password'; return; }
-  btn.disabled = true; btn.innerText = '⏳ Logging in...';
-  fetch('/login', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({username, password})
-  })
-  .then(r=>r.json())
-  .then(data => {
-    if (data.success) { window.location.href = '/launcher'; }
-    else { status.innerText = data.message; btn.disabled = false; btn.innerText = 'Login'; }
-  })
-  .catch(() => { status.innerText = '❌ Network error'; btn.disabled = false; btn.innerText = 'Login'; });
-});
-</script>
+  <div class="form-box">
+    <h2>🔒 Fast Mailer Login</h2>
+    <input id="username" placeholder="Username" autocomplete="username" />
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+    <button id="loginBtn">Login</button>
+    <p id="loginStatus"></p>
+  </div>
+  <script>
+    function doLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const status   = document.getElementById('loginStatus');
+      const btn      = document.getElementById('loginBtn');
+      if (!username || !password) {
+        status.innerText = '❌ Username aur password dono required hain.';
+        return;
+      }
+      btn.disabled  = true;
+      btn.innerText = '⏳ Logging in...';
+      status.innerText = '';
+      fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            window.location.href = '/launcher';
+          } else {
+            status.innerText = data.message;
+            btn.disabled  = false;
+            btn.innerText = 'Login';
+          }
+        })
+        .catch(() => {
+          status.innerText = '❌ Server se connect nahi ho pa raha.';
+          btn.disabled  = false;
+          btn.innerText = 'Login';
+        });
+    }
+    document.getElementById('loginBtn').addEventListener('click', doLogin);
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  </script>
 </body>
 </html>
