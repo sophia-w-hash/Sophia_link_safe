@@ -9,6 +9,12 @@
 <body>
   <div class="form-grid">
     <h2>📧 Fast Mail Launcher</h2>
+
+    <div class="limit-bar" id="limitBar">
+      📊 Mail Limit: <span id="limitText">-- / 26</span> used
+      &nbsp;|&nbsp; ⏱ Reset in: <span id="resetText">--</span> min
+    </div>
+
     <div class="grid-row">
       <input id="senderName" placeholder="Sender Name" />
       <input id="email" type="email" placeholder="Your Gmail" />
@@ -20,13 +26,13 @@
     <div class="grid-row">
       <textarea id="message" placeholder="Message Body"></textarea>
       <div style="position:relative;flex:1;display:flex;flex-direction:column;">
-        <textarea id="recipients" placeholder="Recipients (comma or newline)&#10;Max 500 emails" style="flex:1;"></textarea>
+        <textarea id="recipients" placeholder="Recipients (comma or newline)&#10;Max 26 emails per hour" style="flex:1;"></textarea>
         <span id="recipientCount" style="font-size:12px;color:#22c55e;text-align:right;margin-top:4px;font-weight:600;">0 recipients</span>
       </div>
     </div>
     <div class="grid-row">
       <button id="sendBtn">🚀 Send All</button>
-      <button id="logoutBtn" class="btn-logout">🟧 Logout</button>
+      <button id="logoutBtn">🟧 Logout</button>
     </div>
     <div class="progress-wrap" id="progressWrap" style="display:none;">
       <div class="progress-bar" id="progressBar"></div>
