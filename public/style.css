@@ -1,23 +1,129 @@
-*{margin:0;padding:0;box-sizing:border-box;font-family:"Segoe UI",sans-serif;}
-body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f0f4f8;padding:20px;}
-.form-box,.form-grid{background:#fff;padding:28px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.1);width:820px;max-width:100%;}
-h2{text-align:center;margin-bottom:22px;color:#111827;}
-.form-box input{display:block;width:100%;padding:12px;margin-bottom:14px;border-radius:8px;border:1px solid #cbd5e1;font-size:14px;outline:none;}
-.form-box input:focus{border-color:#3b82f6;box-shadow:0 0 8px rgba(59,130,246,0.3);}
-.form-box button{width:100%;padding:12px;border:none;background:#3b82f6;color:#fff;font-weight:600;font-size:15px;border-radius:8px;cursor:pointer;transition:0.3s;}
-.form-box button:hover{background:#2563eb;}
-.form-box button:disabled{background:#93c5fd;cursor:not-allowed;}
-.grid-row{display:flex;gap:15px;margin-bottom:15px;}
-.grid-row input,.grid-row textarea,.grid-row button{flex:1;padding:12px;border-radius:8px;border:1px solid #cbd5e1;font-size:14px;outline:none;}
-.grid-row textarea{min-height:110px;resize:vertical;}
-.grid-row input:focus,.grid-row textarea:focus{border-color:#3b82f6;box-shadow:0 0 8px rgba(59,130,246,0.3);}
-.grid-row button{border:none;background:#3b82f6;color:#fff;font-weight:600;cursor:pointer;transition:0.3s;min-height:48px;}
-.grid-row button:hover{background:#2563eb;}
-.grid-row button:disabled{background:#93c5fd;cursor:not-allowed;}
-.btn-logout{background:#6b7280!important;}
-.btn-logout:hover{background:#4b5563!important;}
-.rc-wrap{flex:1;display:flex;flex-direction:column;gap:4px;}
-.rc-wrap textarea{flex:1;min-height:110px;resize:vertical;}
-.rc-count{font-size:12px;color:#10b981;text-align:right;font-weight:500;}
-#statusMessage,#loginStatus{font-size:13px;color:#ef4444;margin-top:8px;text-align:center;font-weight:500;}
-@media(max-width:600px){.grid-row{flex-direction:column;}}
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #eef0f5;
+  padding: 20px;
+}
+
+.form-box {
+  background: #fff;
+  padding: 36px 32px;
+  border-radius: 14px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-grid {
+  background: #fff;
+  padding: 32px 30px;
+  border-radius: 14px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.10);
+  width: 820px;
+  max-width: 98vw;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 22px;
+  color: #111827;
+  font-size: 1.5rem;
+}
+
+.grid-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+input, textarea {
+  flex: 1;
+  padding: 13px 14px;
+  border-radius: 9px;
+  border: 1.5px solid #cbd5e1;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+  font-family: inherit;
+  color: #1f2937;
+  background: #fff;
+}
+
+input::placeholder, textarea::placeholder { color: #aab0bb; }
+
+input:focus, textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+}
+
+textarea { min-height: 130px; resize: vertical; }
+
+button {
+  flex: 1;
+  padding: 13px;
+  border-radius: 9px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+button:active { transform: scale(0.98); }
+
+#sendBtn { background: #3b82f6; color: #fff; }
+#sendBtn:hover { background: #2563eb; }
+#sendBtn:disabled { background: #93c5fd; cursor: not-allowed; }
+
+#logoutBtn { background: #6b7280; color: #fff; }
+#logoutBtn:hover { background: #4b5563; }
+
+#loginBtn {
+  background: #3b82f6;
+  color: #fff;
+  width: 100%;
+  padding: 13px;
+  border-radius: 9px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+#loginBtn:hover { background: #2563eb; }
+#loginBtn:disabled { background: #93c5fd; cursor: not-allowed; }
+
+#statusMessage, #loginStatus {
+  font-size: 13.5px;
+  margin-top: 8px;
+  text-align: center;
+  min-height: 20px;
+  font-weight: 500;
+}
+
+.progress-wrap {
+  background: #e2e8f0;
+  border-radius: 8px;
+  height: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  border-radius: 8px;
+  width: 0%;
+  transition: width 0.5s ease;
+}
+
+@media (max-width: 600px) {
+  .grid-row { flex-direction: column; }
+  .form-grid { padding: 20px 14px; }
+}
