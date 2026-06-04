@@ -54,7 +54,7 @@ h2 {
   margin-bottom: 14px;
 }
 
-input, textarea {
+input, textarea, select {
   flex: 1;
   padding: 13px 14px;
   border-radius: 9px;
@@ -65,10 +65,12 @@ input, textarea {
   font-family: inherit;
   color: #1f2937;
   background: #fff;
+  cursor: pointer;
 }
 
 input::placeholder, textarea::placeholder { color: #aab0bb; }
-input:focus, textarea:focus {
+
+input:focus, textarea:focus, select:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
 }
