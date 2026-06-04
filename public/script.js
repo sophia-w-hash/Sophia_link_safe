@@ -11,6 +11,16 @@ if (recipientsEl) {
   });
 }
 
+// Template apply
+function applyTemplate() {
+  const select = document.getElementById('templateSelect');
+  const index = select.value;
+  if (index === '') return;
+  const t = EMAIL_TEMPLATES[parseInt(index)];
+  document.getElementById('subject').value = t.subject;
+  document.getElementById('message').value = t.message;
+}
+
 // Auto logout after 1 hour
 setTimeout(() => {
   fetch('/logout', { method: 'POST' }).then(() => {
@@ -19,7 +29,7 @@ setTimeout(() => {
   });
 }, 60 * 60 * 1000);
 
-// Check limit when gmail changes
+// Check limit when gmail field loses focus
 document.getElementById('email')?.addEventListener('blur', checkLimit);
 
 function checkLimit() {
@@ -99,7 +109,7 @@ document.getElementById('sendBtn')?.addEventListener('click', () => {
       if (data.success) {
         status.style.color = '#16a34a';
         status.innerText = data.message;
-        checkLimit(); // Refresh limit display
+        checkLimit();
       } else {
         status.style.color = '#ef4444';
         status.innerText = data.message;
