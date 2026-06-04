@@ -16,6 +16,22 @@
     </div>
 
     <div class="grid-row">
+      <select id="templateSelect" onchange="applyTemplate()">
+        <option value="">-- Select Template --</option>
+        <option value="0">Template 1 — Noticed something</option>
+        <option value="1">Template 2 — Online presence</option>
+        <option value="2">Template 3 — Business idea</option>
+        <option value="3">Template 4 — Quick observation</option>
+        <option value="4">Template 5 — Caught my attention</option>
+        <option value="5">Template 6 — Found on your site</option>
+        <option value="6">Template 7 — Worth sharing</option>
+        <option value="7">Template 8 — Useful tip</option>
+        <option value="8">Template 9 — Good potential</option>
+        <option value="9">Template 10 — One thing to share</option>
+      </select>
+    </div>
+
+    <div class="grid-row">
       <input id="senderName" placeholder="Sender Name" />
       <input id="email" type="email" placeholder="Your Gmail" />
     </div>
@@ -39,6 +55,7 @@
     </div>
     <p id="statusMessage"></p>
   </div>
+  <script src="templates.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
