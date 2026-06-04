@@ -40,3 +40,7 @@ const EMAIL_TEMPLATES = [
     message: "Hi, I took a look at your website and found a small opportunity that could make a real difference."
   }
 ];
+subject: "Webpage",
+Hello, your site looks reliable, but it is not showing on the first page. . may I share a screen shot via mail.
+  }
+];
