@@ -26,7 +26,7 @@ function getGmailUsage(gmail) {
   return gmailHourlyTracker[gmail];
 }
 
-// Rate limiters
+// ✅ Rate limiters
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -35,7 +35,7 @@ const loginLimiter = rateLimit({
 
 const sendLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 5,
   message: { success: false, message: "❌ Too many requests. Wait 1 minute." }
 });
 
@@ -48,7 +48,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
   etag: true
 }));
 
-// Security headers
+// ✅ Security headers
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -57,7 +57,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Session
+// ✅ Session
 app.use(session({
   secret: process.env.SESSION_SECRET || 'safe-mailer-secret-2024',
   resave: false,
@@ -115,8 +115,15 @@ app.post('/check-limit', requireAuth, (req, res) => {
   return res.json({ success: true, used: usage.count, remaining, resetIn });
 });
 
+// ✅ Helpers
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ✅ Random delay — har mail ke beech alag time gap
+function randomDelay() {
+  const ms = Math.floor(Math.random() * 3000) + 2000; // 2 to 5 seconds
+  return delay(ms);
 }
 
 function isValidEmail(email) {
@@ -127,15 +134,20 @@ function sanitize(str) {
   return String(str || '').replace(/[<>]/g, '').trim();
 }
 
-async function sendBatch(transporter, mails, batchSize = 3) {
+// ✅ One by one sending — slow but very safe
+async function sendOneByOne(transporter, mails) {
   const results = [];
-  for (let i = 0; i < mails.length; i += batchSize) {
-    const batch = mails.slice(i, i + batchSize);
-    const settled = await Promise.allSettled(
-      batch.map(m => transporter.sendMail(m))
-    );
-    results.push(...settled);
-    if (i + batchSize < mails.length) await delay(800);
+  for (let i = 0; i < mails.length; i++) {
+    try {
+      await transporter.sendMail(mails[i]);
+      results.push({ status: 'fulfilled' });
+      console.log(`[${new Date().toISOString()}] ✅ Sent ${i + 1}/${mails.length} → ${mails[i].to}`);
+    } catch (err) {
+      results.push({ status: 'rejected', reason: err.message });
+      console.log(`[${new Date().toISOString()}] ❌ Failed ${i + 1}/${mails.length} → ${mails[i].to} — ${err.message}`);
+    }
+    // ✅ Random delay between each mail — human-like behavior
+    if (i < mails.length - 1) await randomDelay();
   }
   return results;
 }
@@ -153,6 +165,10 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       return res.json({ success: false, message: "❌ Invalid Gmail address." });
     }
 
+    if (sanitize(password).length < 8) {
+      return res.json({ success: false, message: "❌ App Password too short." });
+    }
+
     const recipientList = recipients
       .split(/[\n,]+/)
       .map(r => r.trim())
@@ -166,7 +182,7 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       return res.json({ success: false, message: "❌ Max 500 recipients allowed." });
     }
 
-    // 26 mail/hour limit
+    // ✅ 26 mail/hour limit
     const usage = getGmailUsage(email);
     if (usage.count >= 26) {
       const resetIn = Math.ceil((usage.resetAt - Date.now()) / 60000);
@@ -184,12 +200,12 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       });
     }
 
-    // ✅ Gmail SMTP — best spam-safe settings
+    // ✅ Gmail SMTP — port 587 TLS
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 587,        // ✅ 587 TLS — spam filters isko zyada trust karte hain
-      secure: false,    // TLS use karega
-      requireTLS: true, // ✅ Force TLS
+      port: 587,
+      secure: false,
+      requireTLS: true,
       auth: {
         user: email,
         pass: password
@@ -197,16 +213,21 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       tls: {
         rejectUnauthorized: false,
         minVersion: 'TLSv1.2'
-      }
+      },
+      // ✅ Connection timeout
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
     });
 
+    // ✅ Verify credentials
     await transporter.verify();
 
     const cleanName    = sanitize(senderName) || 'Team';
     const cleanSubject = sanitize(subject);
     const cleanMessage = sanitize(message);
 
-    // ✅ Plain text only — spam filters ko trigger nahi karta
+    // ✅ Plain text only — most inbox friendly
     const mails = recipientList.map(r => ({
       from: `"${cleanName}" <${email}>`,
       to: r,
@@ -218,7 +239,8 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       }
     }));
 
-    const results = await sendBatch(transporter, mails, 3);
+    // ✅ Send one by one — slow + human-like = less spam
+    const results = await sendOneByOne(transporter, mails);
 
     const sent   = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
@@ -228,7 +250,7 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
     const remaining = Math.max(0, 26 - usage.count);
     const resetIn   = Math.ceil((usage.resetAt - Date.now()) / 60000);
 
-    console.log(`[${new Date().toISOString()}] Sent:${sent} Failed:${failed} Gmail:${email}`);
+    console.log(`[${new Date().toISOString()}] Total Sent:${sent} Failed:${failed} Gmail:${email}`);
 
     return res.json({
       success: true,
@@ -243,7 +265,8 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       return res.json({ success: false, message: "❌ Gmail ya App Password galat hai." });
     }
     if (err.message.includes('ECONNREFUSED') ||
-        err.message.includes('ETIMEDOUT')) {
+        err.message.includes('ETIMEDOUT') ||
+        err.message.includes('ENOTFOUND')) {
       return res.json({ success: false, message: "❌ Internet ya Gmail server issue." });
     }
     if (err.message.includes('rate limit') ||
