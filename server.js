@@ -9,9 +9,11 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// 🔑 Login credentials
 const HARD_USERNAME = process.env.LOGIN_USER || "1";
 const HARD_PASSWORD = process.env.LOGIN_PASS || "1";
 
+// ✅ Rate limiters
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -21,24 +23,27 @@ const loginLimiter = rateLimit({
 const sendLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
-  message: { success: false, message: "❌ Too many send requests. Wait 1 minute." }
+  message: { success: false, message: "❌ Too many requests. Wait 1 minute." }
 });
 
+// Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'fast-mailer-super-secret-2024',
+  secret: process.env.SESSION_SECRET || 'safe-mailer-secret-2024',
   resave: false,
   saveUninitialized: false,
   cookie: { httpOnly: true, maxAge: 2 * 60 * 60 * 1000 }
 }));
 
+// 🔒 Auth middleware
 function requireAuth(req, res, next) {
   if (req.session.user) return next();
   return res.redirect('/');
 }
 
+// Routes
 app.get('/', (req, res) => {
   if (req.session.user) return res.redirect('/launcher');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
@@ -64,14 +69,17 @@ app.post('/logout', (req, res) => {
   });
 });
 
+// ⏱ Delay helper
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// 📧 Email validator
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+// 📦 Batch sender
 async function sendBatch(transporter, mails, batchSize = 3) {
   const results = [];
   for (let i = 0; i < mails.length; i += batchSize) {
@@ -83,10 +91,12 @@ async function sendBatch(transporter, mails, batchSize = 3) {
   return results;
 }
 
+// ✅ Send route — Gmail SMTP direct
 app.post('/send', requireAuth, sendLimiter, async (req, res) => {
   try {
     const { senderName, email, password, recipients, subject, message } = req.body;
 
+    // Validation
     if (!email || !password || !recipients || !subject || !message) {
       return res.json({ success: false, message: "❌ Sab fields required hain." });
     }
@@ -95,6 +105,7 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       return res.json({ success: false, message: "❌ Invalid Gmail address." });
     }
 
+    // Parse + filter valid emails only
     const recipientList = recipients
       .split(/[\n,]+/)
       .map(r => r.trim())
@@ -108,36 +119,50 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
       return res.json({ success: false, message: "❌ Max 500 recipients allowed." });
     }
 
+    // ✅ Gmail SMTP transporter — direct connection
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
       secure: true,
-      auth: { user: email, pass: password },
+      auth: {
+        user: email,
+        pass: password  // Gmail App Password
+      },
       pool: true,
       maxConnections: 3,
-      maxMessages: 50,
+      maxMessages: 100,
       tls: { rejectUnauthorized: false }
     });
 
+    // ✅ Verify credentials pehle
     await transporter.verify();
 
+    // Prepare mails — HTML + plain text dono
     const mails = recipientList.map(r => ({
-      from: `"${(senderName || 'Mail Team').replace(/[<>]/g, '')}" <${email}>`,
+      from: `"${(senderName || 'Team').replace(/[<>]/g, '')}" <${email}>`,
       to: r,
       subject: subject,
       text: message,
       html: `
-        <div style="font-family:Arial,sans-serif;font-size:15px;color:#222;line-height:1.7;max-width:600px;">
-          ${message.replace(/\n/g, '<br>')}
-          <br><br>
-          <hr style="border:none;border-top:1px solid #eee;">
-          <p style="color:#999;font-size:11px;">Sent by ${senderName || email}</p>
+        <div style="font-family:Arial,sans-serif;font-size:15px;color:#222222;line-height:1.8;max-width:600px;margin:auto;padding:20px;">
+          <p>${message.replace(/\n/g, '<br>')}</p>
+          <br>
+          <hr style="border:none;border-top:1px solid #eeeeee;margin:20px 0;">
+          <p style="color:#999999;font-size:11px;text-align:center;">
+            Sent by ${(senderName || email).replace(/[<>]/g, '')}
+          </p>
         </div>
       `,
-      headers: { 'X-Mailer': 'Nodemailer', 'X-Priority': '3' }
+      headers: {
+        'X-Mailer': 'Nodemailer',
+        'X-Priority': '3',
+        'Precedence': 'bulk'
+      }
     }));
 
+    // Send in batches
     const results = await sendBatch(transporter, mails, 3);
+
     const sent   = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
@@ -148,13 +173,18 @@ app.post('/send', requireAuth, sendLimiter, async (req, res) => {
 
   } catch (err) {
     console.error("Send error:", err.message);
+
     if (err.message.includes('Invalid login') || err.message.includes('Username and Password')) {
-      return res.json({ success: false, message: "❌ Gmail ya App Password galat hai." });
+      return res.json({ success: false, message: "❌ Gmail ya App Password galat hai. App Password check karo." });
     }
+    if (err.message.includes('ECONNREFUSED') || err.message.includes('ETIMEDOUT')) {
+      return res.json({ success: false, message: "❌ Gmail server se connect nahi ho pa raha. Internet check karo." });
+    }
+
     return res.json({ success: false, message: "❌ Error: " + err.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Fast Mailer running → http://localhost:${PORT}`);
+  console.log(`🚀 Safe Mailer running → http://localhost:${PORT}`);
 });
